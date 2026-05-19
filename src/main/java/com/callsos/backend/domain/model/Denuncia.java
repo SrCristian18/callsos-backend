@@ -10,17 +10,20 @@ package com.callsos.backend.domain.model;
  */
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.valueobject.Ubicacion;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
  
 import java.time.LocalDateTime;
+import java.util.Objects;
  
 /**
- * Reporte formal presentado por un Denunciante sobre un incidente.
- * Se vincula al Incidente resultante (diagrama 2).
+ * Clase ternaria: surge de la relación entre Denunciante e Incidente.
+ *
+ * Regla de negocio: no puede existir una Denuncia si no hay un
+ * Denunciante y un Incidente. Ambas referencias son obligatorias
+ * y se validan en el constructor.
+ *
+ * Es el origen de una Asignacion — sin Denuncia no hay Asignacion.
  */
-@Getter
-@AllArgsConstructor
+
 public class Denuncia {
  
     private final String id;                  // UUID
@@ -28,5 +31,35 @@ public class Denuncia {
     private final TipoIncidente tipo;
     private final String descripcion;
     private final Ubicacion ubicacion;
-    private final Denunciante denunciante;
+    private final Denunciante denunciante;  // OBLIGATORIO
+    private final Incidente incidente;        // OBLIGATORIO
+   
+    public Denuncia(String id, TipoIncidente tipo, String descripcion,
+                    Ubicacion ubicacion,
+                    Denunciante denunciante,
+                    Incidente incidente) {
+ 
+        Objects.requireNonNull(denunciante,
+            "Una Denuncia requiere un Denunciante.");
+        Objects.requireNonNull(incidente,
+            "Una Denuncia requiere un Incidente.");
+        Objects.requireNonNull(tipo,
+            "El tipo de incidente es obligatorio.");
+ 
+        this.id           = id;
+        this.tipo         = tipo;
+        this.descripcion  = descripcion;
+        this.ubicacion    = ubicacion;
+        this.denunciante  = denunciante;
+        this.incidente    = incidente;
+        this.fecha        = LocalDateTime.now();
+    }
+    
+    public String getId()               { return id; }
+    public LocalDateTime getFecha()     { return fecha; }
+    public TipoIncidente getTipo()      { return tipo; }
+    public String getDescripcion()      { return descripcion; }
+    public Ubicacion getUbicacion()     { return ubicacion; }
+    public Denunciante getDenunciante() { return denunciante; }
+    public Incidente getIncidente()     { return incidente; }
 }

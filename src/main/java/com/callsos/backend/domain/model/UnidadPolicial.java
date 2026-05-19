@@ -11,36 +11,51 @@ package com.callsos.backend.domain.model;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import lombok.Getter;
  
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
  
 /**
- * Centro de Atención Inmediata (CAI).
- * Hereda de AutoridadPolicial (diagrama 2) y agrega agentes
- * mediante composición (diagrama 2, diamante).
- * Corresponde a la clase "CAI" del diagrama de atributos.
+ * Nodo compuesto del patrón Composite.
+ *
+ * Una UnidadPolicial (CAI) puede contener Agentes (hojas) u otras
+ * UnidadesPolicial (nodos), formando una jerarquía arbitraria.
+ * La lista de subordinados es gestionada por AutoridadPolicial.
+ *
+ * La agregación (rombo blanco) del diagrama 2 está representada
+ * estructuralmente por la herencia de AutoridadPolicial, que
+ * posee internamente List<AutoridadPolicial>.
  */
-@Getter
 public class UnidadPolicial extends AutoridadPolicial {
  
-    private final List<Agente> agentes;
  
     public UnidadPolicial(String id, String nombre,
                           String direccion, Ubicacion ubicacion,
                           String telefono) {
         super(id, nombre, direccion, ubicacion, telefono);
-        this.agentes = new ArrayList<>();
     }
  
-    /** Agrega un agente a la unidad. */
-    public void agregarAgente(Agente agente) {
-        if (agente == null) throw new IllegalArgumentException("Agente no puede ser nulo");
-        agentes.add(agente);
+    @Override
+    public String getRol() {
+        return "UNIDAD_POLICIAL";
     }
  
-    /** Vista no modificable de los agentes. */
+    // ── Consultas convenientes ─────────────────────────────────────────────
+ 
+    /**
+     * Devuelve solo los Agentes directamente subordinados a esta unidad.
+     */
     public List<Agente> getAgentes() {
-        return Collections.unmodifiableList(agentes);
+       return getSubordinados().stream()
+            .filter(s -> s instanceof Agente)
+            .map(s -> (Agente) s)
+            .toList();
+    }
+    
+    /**
+     * Devuelve los agentes disponibles en esta unidad.
+     */
+    public List<Agente> getAgentesDisponibles() {
+        return getAgentes().stream()
+            .filter(Agente::estaDisponible)
+            .toList();
     }
 }
