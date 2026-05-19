@@ -9,16 +9,11 @@ package com.callsos.backend.domain.port.in;
  * @author LENOVO
  */
 
-import com.callsos.backend.domain.model.Incidente;
- 
 /**
  * Puerto de entrada: contrato para asignar un agente disponible a un incidente.
- * El servicio buscará internamente un agente libre de la unidad correspondiente.
+ * Recibe el ID del incidente — el caso de uso se encarga de cargarlo.
  */
 public interface AsignarAgentePort {
-    
-    /**
-     * @param incidente  Incidente al que se asignará un agente
-     */
-    void ejecutar(Incidente incidente);
+
+    void ejecutar(String incidenteId);
 }

@@ -22,18 +22,8 @@ import java.util.UUID;
 
 /**
  * Caso de uso: asignar un agente disponible a un incidente.
- *
- * Orquesta:
- *   1. Verificar que el incidente tiene una UnidadPolicial asignada.
- *   2. Buscar un agente disponible en esa unidad (puerto de salida).
- *   3. Crear la Asignacion (que internamente ocupa al agente).
- *   4. Registrar la asignación en el incidente.
- *   5. Persistir los cambios.
- *
- * La Asignacion requiere una Denuncia (regla ternaria). Se obtiene
- * del incidente, que ya la tiene vinculada.
+ * Recibe el ID del incidente y lo carga internamente.
  */
-
 public class AsignarAgenteService implements AsignarAgentePort {
     
     private final AgenteRepositoryPort agenteRepository;
@@ -46,7 +36,12 @@ public class AsignarAgenteService implements AsignarAgentePort {
     }
     
     @Override
-    public void ejecutar(Incidente incidente) {
+    public void ejecutar(String incidenteId) {
+ 
+        Incidente incidente = incidenteRepository
+            .buscarPorId(incidenteId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Incidente no encontrado: " + incidenteId));
  
         UnidadPolicial unidad = incidente.getUnidadPolicial();
         if (unidad == null)

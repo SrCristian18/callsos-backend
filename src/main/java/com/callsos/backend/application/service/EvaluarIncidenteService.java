@@ -17,12 +17,7 @@ import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
  * Caso de uso: evaluar y finalizar un incidente atendido.
- *
- * Se ejecuta cuando el agente concluye la atención.
- * Transición esperada: EN_PROCESO → FINALIZADO.
- *
- * Puede extenderse para disparar la creación de ReporteHallazgos
- * o notificaciones al denunciante.
+ * Transición: EN_PROCESO → FINALIZADO.
  */
 public class EvaluarIncidenteService implements EvaluarIncidentePort{
     
@@ -33,7 +28,12 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort{
     }
  
     @Override
-    public void ejecutar(Incidente incidente) {
+    public void ejecutar(String incidenteId) {
+ 
+        Incidente incidente = incidenteRepository
+            .buscarPorId(incidenteId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Incidente no encontrado: " + incidenteId));
  
         if (!EstadoIncidente.EN_PROCESO.equals(incidente.getEstado()))
             throw new IllegalStateException(
@@ -41,7 +41,6 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort{
                 + incidente.getEstado());
  
         incidente.cambiarEstado(EstadoIncidente.FINALIZADO);
- 
         incidenteRepository.guardar(incidente);
     }
 }
