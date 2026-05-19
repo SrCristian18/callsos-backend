@@ -4,14 +4,15 @@ spring:
 
   datasource:
     # Si no existen, usará lo que está después de los dos puntos como respaldo.
-    url: jdbc:mysql://${SPRING_DATASOURCE_URL:localhost:3306/callsos-backend}?allowPublicKeyRetrieval=true&useSSL=false
+    #                           -a partir de aqui es el respaldo
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/callsos-bd?allowPublicKeyRetrieval=true&useSSL=false}
     username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:root_password}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate # 'validate' o 'none' ya que Docker leerá tus archivos .sql iniciales
+      ddl-auto: none     # Cambiado a 'none' para evitar conflictos con la inicialización manual de Docker
     show-sql: true       # Para que puedan ver las consultas en la consola de Docker
     properties:
       hibernate:

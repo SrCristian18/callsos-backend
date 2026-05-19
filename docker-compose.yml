@@ -62,5 +62,5 @@ volumes:
   mysql_data:
 
 networks:
-  red_proyecto:
+  red-callsos:
     driver: bridge

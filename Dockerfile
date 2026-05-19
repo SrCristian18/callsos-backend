@@ -22,4 +22,4 @@ COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 
 # Configuraciones de optimización para Spring en contenedores
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=dev", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
