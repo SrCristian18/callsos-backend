@@ -1,13 +1,22 @@
 spring:
+  application:
+    name: callsos-backend
+
   datasource:
-    url: jdbc:mysql://localhost:3306/callsos
-    username: root
-    password: root
+    # Si no existen, usará lo que está después de los dos puntos como respaldo.
+    url: jdbc:mysql://${SPRING_DATASOURCE_URL:localhost:3306/callsos-backend}?allowPublicKeyRetrieval=true&useSSL=false
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate # 'validate' o 'none' ya que Docker leerá tus archivos .sql iniciales
+    show-sql: true       # Para que puedan ver las consultas en la consola de Docker
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
 
 server:
-  port: 8080
+  port: 8080 # El puerto que expusimos en el Dockerfile y Compose
