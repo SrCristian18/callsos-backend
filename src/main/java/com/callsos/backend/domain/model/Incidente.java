@@ -42,6 +42,8 @@ public class Incidente {
     private final Ubicacion ubicacion;
     private final Denunciante denunciante;
     private UnidadPolicial unidadPolicial;      // CAI asignada
+    private Denuncia denuncia;                  // Denuncia que originó este incidente
+    
     private final List<Asignacion> asignaciones;
  
     public Incidente(String id, TipoIncidente tipo, String descripcion,
@@ -91,6 +93,15 @@ public class Incidente {
         this.asignaciones.add(asignacion);
     }
  
+    public Denuncia getDenuncia() { return denuncia; }
+ 
+    /** Vincula la Denuncia que originó este incidente. Solo puede asignarse una vez. */
+    public void setDenuncia(Denuncia denuncia) {
+        if (this.denuncia != null)
+            throw new IllegalStateException("El incidente ya tiene una Denuncia vinculada.");
+        this.denuncia = denuncia;
+    }
+    
     /** Vista inmutable de las asignaciones. */
     public List<Asignacion> getAsignaciones() {
         return Collections.unmodifiableList(asignaciones);
