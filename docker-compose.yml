@@ -1,24 +1,66 @@
-services:
+version: '3.8'
 
-  mysql:
-    image: mysql:8
-    container_name: callsos-mysql
+services:
+  # Base de Datos MySQL
+  mysql_db:
+    image: mysql:8.0
+    container_name: callsos-bd
+    restart: always
+    env_file:
+      - .env  # Docker buscará las variables aquí
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: callsos
+      # Estas variables se llenarán con los valores del archivo .env
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
+      - mysql_data:/var/lib/mysql
+      # Mapeo de la carpeta database en la raíz para ejecutar los .sql
       - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - red-callsos
 
+  # Backend (Spring Boot)
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: callsos-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Spring leerá estas variables para la conexión
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_db:3306/${DB_NAME}?allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - mysql_db
     ports:
       - "8080:8080"
+    networks:
+      - red-callsos
+
+  # Frontend (Flutter)
+  frontend:
+    build:
+      context: ../callsos-frontend
+      dockerfile: Dockerfile
+    container_name: callsos-frontend
+    restart: always
+    ports:
+      - "80:80"
     depends_on:
-      - mysql
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/callsos
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      - backend
+    networks:
+      - red-callsos
+
+volumes:
+  mysql_data:
+
+networks:
+  red_proyecto:
+    driver: bridge
