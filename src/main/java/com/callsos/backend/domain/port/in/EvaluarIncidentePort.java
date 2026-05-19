@@ -8,16 +8,12 @@ package com.callsos.backend.domain.port.in;
  *
  * @author LENOVO
  */
-import com.callsos.backend.domain.model.Incidente;
+
 /**
- * Puerto de entrada: contrato para evaluar un incidente.
- * La evaluación puede incluir priorización, validación de datos
- * o generación de un ReporteHallazgos.
+ * Puerto de entrada: contrato para evaluar y finalizar un incidente.
+ * Recibe el ID del incidente — el caso de uso se encarga de cargarlo.
  */
 public interface EvaluarIncidentePort {
     
-    /**
-     * @param incidente  Incidente a evaluar (ya cargado)
-     */
-    void ejecutar(Incidente incidente);
+    void ejecutar(String incidenteId);
 }
