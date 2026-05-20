@@ -9,16 +9,16 @@ package com.callsos.backend.domain.port.out;
  * @author LENOVO
  */
 
-import com.callsos.backend.domain.model.Agente;
+import com.callsos.backend.domain.model.Asignacion;
  
-import java.util.List;
- 
+import java.util.Optional;
+
 /**
- * Puerto de salida: contrato de persistencia para Agente.
+ * Puerto de salida: contrato de persistencia para Asignacion.
  */
-public interface AgenteRepositoryPort {
+public interface AsignacionRepositoryPort {
     
-    List<Agente> obtenerDisponibles();
+    void guardar(Asignacion asignacion);
  
-    void actualizarEstado(Agente agente);
+    Optional<Asignacion> buscarPorIncidente(String dIncidenteId);
 }

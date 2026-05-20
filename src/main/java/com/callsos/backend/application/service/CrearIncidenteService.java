@@ -54,6 +54,8 @@ public class CrearIncidenteService implements CrearIncidentePort {
             denunciante
         );
  
-        return incidenteRepository.guardar(incidente);
+        // guardar() es void — persistimos y retornamos el mismo objeto
+        incidenteRepository.guardar(incidente);
+        return incidente;
     }
 }
