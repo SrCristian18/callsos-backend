@@ -17,7 +17,8 @@ import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.in.AsignarAgentePort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
- 
+
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,11 +49,15 @@ public class AsignarAgenteService implements AsignarAgentePort {
             throw new IllegalStateException(
                 "El incidente no tiene una UnidadPolicial asignada.");
  
-        Agente agente = agenteRepository
-            .buscarAgenteDisponible(unidad.getId())
+         // obtenerDisponibles() retorna todos los disponibles;
+        // filtramos por los que pertenecen a la unidad del incidente
+        List<Agente> disponibles = agenteRepository.obtenerDisponibles();
+        Agente agente = disponibles.stream()
+            .filter(a -> unidad.getSubordinados().contains(a))
+            .findFirst()
             .orElseThrow(() -> new IllegalStateException(
                 "No hay agentes disponibles en la unidad: " + unidad.getNombre()));
- 
+        
         Denuncia denuncia = incidente.getDenuncia();
         if (denuncia == null)
             throw new IllegalStateException(
@@ -65,7 +70,9 @@ public class AsignarAgenteService implements AsignarAgentePort {
         );
  
         incidente.agregarAsignacion(asignacion);
+ 
+        // guardar estado actualizado del incidente y del agente
         incidenteRepository.guardar(incidente);
-        agenteRepository.guardar(agente);
+        agenteRepository.actualizarEstado(agente);  // fue: guardar(agente)
     }
 }

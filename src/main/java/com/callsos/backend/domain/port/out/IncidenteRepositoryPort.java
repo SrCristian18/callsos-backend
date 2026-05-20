@@ -9,6 +9,7 @@ package com.callsos.backend.domain.port.out;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.model.Incidente;
  
 import java.util.Optional;
@@ -22,7 +23,9 @@ import java.util.Optional;
  */
 public interface IncidenteRepositoryPort {
     
-    Incidente guardar(Incidente incidente);
+    void guardar(Incidente incidente);
  
     Optional<Incidente> buscarPorId(String id);
+ 
+    void actualizarEstado(String id, EstadoIncidente estado);
 }
