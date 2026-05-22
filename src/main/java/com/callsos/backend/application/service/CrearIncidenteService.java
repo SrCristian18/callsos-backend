@@ -8,7 +8,7 @@ package com.callsos.backend.application.service;
  *
  * @author LENOVO
  */
-
+ 
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
