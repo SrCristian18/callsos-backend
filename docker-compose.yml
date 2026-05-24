@@ -1,7 +1,8 @@
 version: '3.8'
 
 services:
-  # Base de Datos MySQL
+
+  # ── Base de Datos MySQL ──────────────────────────────────────────────────
   mysql_db:
     image: mysql:8.0
     container_name: callsos-bd
@@ -23,7 +24,25 @@ services:
     networks:
       - red-callsos
 
-  # Backend (Spring Boot)
+    # HEALTHCHECK: el backend no arrancará hasta que MySQL esté listo
+    # para aceptar conexiones. Sin esto, Spring falla al intentar conectarse
+    # mientras MySQL aún está inicializando (especialmente en el primer arranque
+    # cuando ejecuta los scripts .sql, que puede tardar varios segundos).
+    #
+    # interval: cada cuánto se verifica
+    # timeout: máximo que puede tardar el check
+    # retries: cuántos fallos consecutivos antes de marcar como unhealthy
+    # start_period: tiempo de gracia al inicio (MySQL tarda en arrancar)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  # ── Backend Spring Boot ──────────────────────────────────────────────────
   backend:
     build:
       context: .
@@ -37,14 +56,20 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_db:3306/${DB_NAME}?allowPublicKeyRetrieval=true&useSSL=false
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+
+    # depends_on con condition: service_healthy garantiza que el backend
+    # espera a que MySQL pase el healthcheck antes de intentar conectarse.
+    # Sin "condition", depends_on solo garantiza que el contenedor INICIÓ,
+    # no que la BD esté lista para aceptar conexiones.
     depends_on:
-      - mysql_db
+      mysql_db:
+        condition: service_healthy
     ports:
       - "8080:8080"
     networks:
       - red-callsos
 
-  # Frontend (Flutter)
+  # ── Frontend Flutter ─────────────────────────────────────────────────────
   frontend:
     build:
       context: ../callsos-frontend
