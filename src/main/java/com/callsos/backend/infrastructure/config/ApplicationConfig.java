@@ -10,20 +10,30 @@ package com.callsos.backend.infrastructure.config;
  */
 
 import com.callsos.backend.application.service.AsignarAgenteService;
+import com.callsos.backend.application.service.AsignarCAIAIncidenteService;
 import com.callsos.backend.application.service.AtenderIncidenteService;
 import com.callsos.backend.application.service.CambiarEstadoIncidenteService;
 import com.callsos.backend.application.service.ConsultarEstadoIncidenteService;
 import com.callsos.backend.application.service.CrearIncidenteService;
+import com.callsos.backend.application.service.CrearReporteAdministrativoService;
+import com.callsos.backend.application.service.CrearReporteHallazgosService;
 import com.callsos.backend.application.service.EvaluarIncidenteService;
 import com.callsos.backend.domain.port.in.AsignarAgentePort;
+import com.callsos.backend.domain.port.in.AsignarCAIAIncidentePort;
 import com.callsos.backend.domain.port.in.AtenderIncidentePort;
 import com.callsos.backend.domain.port.in.CambiarEstadoIncidentePort;
 import com.callsos.backend.domain.port.in.ConsultarEstadoIncidentePort;
 import com.callsos.backend.domain.port.in.CrearIncidentePort;
+import com.callsos.backend.domain.port.in.CrearReporteAdministrativoPort;
+import com.callsos.backend.domain.port.in.CrearReporteHallazgosPort;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
+import com.callsos.backend.domain.port.out.AgenteByIdRepositoryPort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
+import com.callsos.backend.domain.port.out.ReporteAdministrativoRepositoryPort;
+import com.callsos.backend.domain.port.out.ReporteHallazgosRepositoryPort;
+import com.callsos.backend.domain.port.out.UnidadPolicialRepositoryPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -58,6 +68,13 @@ public class ApplicationConfig {
             IncidenteRepositoryPort incidenteRepository,
             DenuncianteRepositoryPort denuncianteRepository) {
         return new CrearIncidenteService(incidenteRepository, denuncianteRepository);
+    }
+    
+    @Bean
+    public AsignarCAIAIncidentePort asignarCAIAIncidentePort(
+            IncidenteRepositoryPort incidenteRepo,
+            UnidadPolicialRepositoryPort unidadRepo) {
+        return new AsignarCAIAIncidenteService(incidenteRepo, unidadRepo);
     }
     
     /**
@@ -106,5 +123,21 @@ public class ApplicationConfig {
     public EvaluarIncidentePort evaluarIncidentePort(
             IncidenteRepositoryPort incidenteRepository) {
         return new EvaluarIncidenteService(incidenteRepository);
+    }
+    
+    @Bean
+    public CrearReporteHallazgosPort crearReporteHallazgosPort(
+            IncidenteRepositoryPort incidenteRepo,
+            AgenteByIdRepositoryPort agenteRepo,
+            ReporteHallazgosRepositoryPort reporteRepo) {
+        return new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo);
+    }
+ 
+    @Bean
+    public CrearReporteAdministrativoPort crearReporteAdministrativoPort(
+            IncidenteRepositoryPort incidenteRepo,
+            UnidadPolicialRepositoryPort unidadRepo,
+            ReporteAdministrativoRepositoryPort reporteRepo) {
+        return new CrearReporteAdministrativoService(incidenteRepo, unidadRepo, reporteRepo);
     }
 }
