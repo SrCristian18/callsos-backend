@@ -32,12 +32,12 @@ import java.util.Optional;
 @Component
 public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPort{
  
-    private final JdbcTemplate jdbc;
+     private final JdbcTemplate jdbc;
  
     public UnidadPolicialRepositoryMySQL(DataSource dataSource) {
         this.jdbc = new JdbcTemplate(dataSource);
     }
-    
+ 
     @Override
     public Optional<UnidadPolicial> buscarPorUbicacion(Ubicacion ubicacion) {
         String sql = """
@@ -52,14 +52,25 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
             LIMIT 1
             """;
         return jdbc.query(
-                sql,
-                new UnidadPolicialRowMapper(),
-                ubicacion.getLatitud(),
-                ubicacion.getLongitud(),
-                ubicacion.getLatitud()
-            ).stream().findFirst();
+            sql,
+            new UnidadPolicialRowMapper(),
+            ubicacion.getLatitud(),
+            ubicacion.getLongitud(),
+            ubicacion.getLatitud()
+        ).stream().findFirst();
     }
-    
+ 
+    @Override
+    public Optional<UnidadPolicial> buscarPorId(String id) {
+        String sql = """
+            SELECT id, nombre, direccion, latitud, longitud, telefono
+            FROM unidades_policiales
+            WHERE id = ?
+            """;
+        return jdbc.query(sql, new UnidadPolicialRowMapper(), id)
+            .stream().findFirst();
+    }
+ 
     private static class UnidadPolicialRowMapper implements RowMapper<UnidadPolicial> {
         @Override
         public UnidadPolicial mapRow(ResultSet rs, int rowNum) throws SQLException {

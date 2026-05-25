@@ -33,16 +33,31 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     public AgenteRepositoryMySQL(DataSource dataSource) {
         this.jdbc = new JdbcTemplate(dataSource);
     }
-    
+ 
     @Override
     public List<Agente> obtenerDisponibles() {
         String sql = """
-            SELECT a.id, a.nombre, a.direccion, a.telefono,
-                   a.latitud, a.longitud, a.estado
-            FROM agentes a
-            WHERE a.estado = 'DISPONIBLE'
+            SELECT id, nombre, direccion, telefono, latitud, longitud, estado
+            FROM agentes
+            WHERE estado = 'DISPONIBLE'
             """;
         return jdbc.query(sql, new AgenteRowMapper());
+    }
+ 
+    /**
+     * FIX del bug contains(): el filtro es SQL → compara IDs en BD,
+     * no referencias de objetos Java en memoria.
+     */
+    @Override
+    public List<Agente> obtenerDisponiblesPorUnidad(String unidadPolicialId) {
+        String sql = """
+            SELECT id, nombre, direccion, telefono, latitud, longitud, estado
+            FROM agentes
+            WHERE estado = 'DISPONIBLE'
+              AND unidad_policial_id = ?
+            ORDER BY nombre ASC
+            """;
+        return jdbc.query(sql, new AgenteRowMapper(), unidadPolicialId);
     }
  
     @Override
@@ -53,14 +68,16 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             agente.getId()
         );
     }
-    
+ 
     private static class AgenteRowMapper implements RowMapper<Agente> {
         @Override
         public Agente mapRow(ResultSet rs, int rowNum) throws SQLException {
-            Ubicacion ubicacion = new Ubicacion(
-                rs.getDouble("latitud"),
-                rs.getDouble("longitud")
-            );
+            double lat = rs.getDouble("latitud");
+            double lon = rs.getDouble("longitud");
+            // Agente puede no tener ubicación registrada aún
+            Ubicacion ubicacion = (lat == 0 && lon == 0)
+                ? null
+                : new Ubicacion(lat, lon);
             Agente agente = new Agente(
                 rs.getString("id"),
                 rs.getString("nombre"),
@@ -68,6 +85,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
                 ubicacion,
                 rs.getString("telefono")
             );
+            // Si en BD está OCUPADO, sincronizar estado (sin efectos de dominio extra)
             if (EstadoAgente.OCUPADO.name().equals(rs.getString("estado"))) {
                 agente.asignar();
             }
