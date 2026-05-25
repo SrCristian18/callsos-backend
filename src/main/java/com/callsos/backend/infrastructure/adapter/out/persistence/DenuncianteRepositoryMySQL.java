@@ -37,7 +37,7 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
     @Override
     public Optional<Denunciante> buscarPorId(String id) {
         String sql = """
-            SELECT id, nombre, origen, telefono, correo
+            SELECT id, nombre, origen, telefono, correo, token_fcm
             FROM denunciantes
             WHERE id = ?
             """;
@@ -53,7 +53,8 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
                 rs.getString("nombre"),
                 rs.getString("origen"),
                 rs.getString("telefono"),
-                rs.getString("correo")
+                rs.getString("correo"),
+                rs.getString("token_fcm")
             );
         }
     }
