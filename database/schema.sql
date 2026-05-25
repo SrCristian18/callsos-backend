@@ -158,3 +158,34 @@ CREATE TABLE IF NOT EXISTS ubicaciones_agente (
     INDEX idx_agente_ts    (agente_id, timestamp),
     INDEX idx_incidente_ts (incidente_id, timestamp)
 );
+-- =============================================================================
+-- TABLA: reportes_hallazgos
+-- Generado por el agente al finalizar la atención (paso 9 del flujo).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS reportes_hallazgos (
+    id            VARCHAR(36)  NOT NULL,
+    fecha         DATETIME     NOT NULL,
+    descripcion   TEXT         NULL,
+    incidente_id  VARCHAR(36)  NOT NULL,
+    agente_id     VARCHAR(36)  NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_incidente (incidente_id),
+    CONSTRAINT fk_rh_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id),
+    CONSTRAINT fk_rh_agente    FOREIGN KEY (agente_id)    REFERENCES agentes(id)
+);
+ 
+-- =============================================================================
+-- TABLA: reportes_administrativos
+-- Generado por el Comando o CAI (pasos 3 y 11 del flujo).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS reportes_administrativos (
+    id            VARCHAR(36)  NOT NULL,
+    fecha         DATETIME     NOT NULL,
+    resumen       TEXT         NULL,
+    incidente_id  VARCHAR(36)  NOT NULL,
+    autoridad_id  VARCHAR(36)  NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_incidente (incidente_id),
+    CONSTRAINT fk_ra_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id),
+    CONSTRAINT fk_ra_autoridad FOREIGN KEY (autoridad_id) REFERENCES unidades_policiales(id)
+);
