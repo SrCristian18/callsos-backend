@@ -29,6 +29,7 @@ import com.callsos.backend.domain.port.in.CrearReporteHallazgosPort;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
 import com.callsos.backend.domain.port.out.AgenteByIdRepositoryPort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.ReporteAdministrativoRepositoryPort;
@@ -36,95 +37,76 @@ import com.callsos.backend.domain.port.out.ReporteHallazgosRepositoryPort;
 import com.callsos.backend.domain.port.out.UnidadPolicialRepositoryPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+ 
 /**
- * Configuración central de la capa de aplicación.
+ * Registro explícito de todos los casos de uso como beans de Spring.
  *
- * Responsabilidad: registrar cada caso de uso como bean de Spring,
- * inyectándole explícitamente los puertos de salida que necesita.
+ * Cada @Bean conecta un Puerto de entrada con su implementación concreta,
+ * inyectándole los Puertos de salida que necesita.
  *
- * POR QUÉ @Bean y no @Service en los casos de uso:
- *   - Los casos de uso viven en la capa de aplicación, que no debe conocer
- *     anotaciones de Spring (principio de independencia de framework).
- *   - Esta clase es el único punto donde Spring "entra" en la capa de aplicación.
- *   - Permite ver de un vistazo qué implementación resuelve cada puerto.
- *   - Facilita cambiar implementaciones (ej: mock en tests) sin tocar los servicios.
- *
- * POR QUÉ el tipo de retorno es la INTERFAZ (Port) y no la clase (Service):
- *   - Spring registra el bean bajo el tipo declarado.
- *   - El IncidenteController inyecta por tipo de puerto → Spring lo resuelve aquí.
- *   - Si el tipo fuera la clase concreta, el controller tendría que conocerla,
- *     rompiendo el aislamiento hexagonal.
+ * Los adaptadores de salida (@Component) y los de servicios externos
+ * (GeolocalizacionGPSAdapter, NotificacionFirebaseAdapter) son detectados
+ * automáticamente por Spring via @Component — no necesitan @Bean aquí.
+ * Solo los casos de uso (capa de aplicación, sin anotaciones Spring) necesitan
+ * registro explícito.
  */
 @Configuration
 public class ApplicationConfig {
-    
-    /**
-     * Caso de uso: crear un incidente.
-     * Necesita: saber quién denuncia (DenuncianteRepo) y dónde persistir (IncidenteRepo).
-     */
+ 
+    // ── Incidente ──────────────────────────────────────────────────────────
+ 
     @Bean
     public CrearIncidentePort crearIncidentePort(
-            IncidenteRepositoryPort incidenteRepository,
-            DenuncianteRepositoryPort denuncianteRepository) {
-        return new CrearIncidenteService(incidenteRepository, denuncianteRepository);
+            IncidenteRepositoryPort incidenteRepo,
+            DenuncianteRepositoryPort denuncianteRepo) {
+        return new CrearIncidenteService(incidenteRepo, denuncianteRepo);
     }
-    
+ 
     @Bean
     public AsignarCAIAIncidentePort asignarCAIAIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
             UnidadPolicialRepositoryPort unidadRepo) {
         return new AsignarCAIAIncidenteService(incidenteRepo, unidadRepo);
     }
-    
-    /**
-     * Caso de uso: cambiar el estado de un incidente manualmente.
-     */
-    @Bean
-    public CambiarEstadoIncidentePort cambiarEstadoIncidentePort(
-            IncidenteRepositoryPort incidenteRepository) {
-        return new CambiarEstadoIncidenteService(incidenteRepository);
-    }
  
     /**
-     * Caso de uso: consultar el estado actual (solo lectura).
-     */
-    @Bean
-    public ConsultarEstadoIncidentePort consultarEstadoIncidentePort(
-            IncidenteRepositoryPort incidenteRepository) {
-        return new ConsultarEstadoIncidenteService(incidenteRepository);
-    }
- 
-    /**
-     * Caso de uso: asignar un agente disponible al incidente.
-     * Necesita: buscar agentes (AgenteRepo) y cargar/guardar el incidente (IncidenteRepo).
+     * FIX: AsignarAgenteService ahora recibe AsignacionRepositoryPort
+     * para persistir la Asignacion en BD (antes se creaba en memoria y se perdía).
      */
     @Bean
     public AsignarAgentePort asignarAgentePort(
-            AgenteRepositoryPort agenteRepository,
-            IncidenteRepositoryPort incidenteRepository) {
-        return new AsignarAgenteService(agenteRepository, incidenteRepository);
+            AgenteRepositoryPort agenteRepo,
+            IncidenteRepositoryPort incidenteRepo,
+            AsignacionRepositoryPort asignacionRepo) {
+        return new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo);
     }
  
-    /**
-     * Caso de uso: marcar el incidente como EN_PROCESO
-     * (el agente llegó al lugar del hecho).
-     */
+    @Bean
+    public CambiarEstadoIncidentePort cambiarEstadoIncidentePort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new CambiarEstadoIncidenteService(incidenteRepo);
+    }
+ 
+    @Bean
+    public ConsultarEstadoIncidentePort consultarEstadoIncidentePort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new ConsultarEstadoIncidenteService(incidenteRepo);
+    }
+ 
     @Bean
     public AtenderIncidentePort atenderIncidentePort(
-            IncidenteRepositoryPort incidenteRepository) {
-        return new AtenderIncidenteService(incidenteRepository);
+            IncidenteRepositoryPort incidenteRepo) {
+        return new AtenderIncidenteService(incidenteRepo);
     }
  
-    /**
-     * Caso de uso: evaluar y finalizar un incidente atendido.
-     */
     @Bean
     public EvaluarIncidentePort evaluarIncidentePort(
-            IncidenteRepositoryPort incidenteRepository) {
-        return new EvaluarIncidenteService(incidenteRepository);
+            IncidenteRepositoryPort incidenteRepo) {
+        return new EvaluarIncidenteService(incidenteRepo);
     }
-    
+ 
+    // ── Reportes ───────────────────────────────────────────────────────────
+ 
     @Bean
     public CrearReporteHallazgosPort crearReporteHallazgosPort(
             IncidenteRepositoryPort incidenteRepo,
@@ -141,3 +123,4 @@ public class ApplicationConfig {
         return new CrearReporteAdministrativoService(incidenteRepo, unidadRepo, reporteRepo);
     }
 }
+ 

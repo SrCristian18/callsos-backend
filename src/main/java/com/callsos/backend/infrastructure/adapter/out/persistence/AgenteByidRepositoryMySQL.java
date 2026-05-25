@@ -23,7 +23,7 @@ public class AgenteByidRepositoryMySQL implements AgenteByIdRepositoryPort{
     
     private final JdbcTemplate jdbc;
  
-    public AgenteByidRepositoryMySQLQL(DataSource dataSource) {
+    public AgenteByidRepositoryMySQL(DataSource dataSource) {
         this.jdbc = new JdbcTemplate(dataSource);
     }
  

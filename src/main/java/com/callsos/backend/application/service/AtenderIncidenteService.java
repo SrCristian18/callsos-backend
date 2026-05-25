@@ -9,21 +9,21 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
-import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.AtenderIncidentePort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
- * Caso de uso: marcar un incidente como EN_PROCESO.
- * Representa el momento en que el agente llega al lugar del hecho
- * y comienza la atención activa.
+ * Caso de uso: el agente llega al lugar y comienza la atención activa.
  *
- * Transición: ASIGNADO → EN_PROCESO
- * La validación de la transición la ejecuta el agregado Incidente.
+ * Transición: AGENTE_EN_CAMINO → EN_ATENCION
+ *
+ * * FIX: se usaba EN_PROCESO que fue renombrado a EN_ATENCION en Fase 1
+ * en la Fase 1. Ahora se delega al método semántico incidente.iniciarAtencion()
+ * en lugar de cambiarEstado() con un enum hardcodeado.
  */
 public class AtenderIncidenteService implements AtenderIncidentePort {
-    
+ 
     private final IncidenteRepositoryPort incidenteRepository;
  
     public AtenderIncidenteService(IncidenteRepositoryPort incidenteRepository) {
@@ -38,9 +38,9 @@ public class AtenderIncidenteService implements AtenderIncidentePort {
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
  
-        incidente.cambiarEstado(EstadoIncidente.EN_PROCESO);
+        // Usa el método semántico del agregado — él conoce la transición válida
+        incidente.iniciarAtencion();
  
         incidenteRepository.guardar(incidente);
     }
-    
 }

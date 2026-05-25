@@ -17,6 +17,7 @@ import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.in.AsignarAgentePort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,30 +25,27 @@ import java.util.UUID;
 /**
  * Caso de uso: asignar un agente disponible a un incidente.
  *
- * PRECONDICIÓN: el incidente debe estar en estado DERIVADO_A_CAI
- * (AsignarCAIAIncidenteService debe haberse ejecutado antes).
+ * FIX 1 (contains → SQL): el filtro de agentes ahora se hace en BD
+ *   por unidad_policial_id, no en memoria por referencia de objeto.
  *
- * BUG CORREGIDO:
- *   ANTES: unidad.getSubordinados().contains(a)
- *   → Comparaba referencias en memoria. Los Agente de BD son instancias
- *     nuevas, distintas a las de la lista de subordinados (vacía en BD).
- *     equals() no estaba sobrescrito → siempre false → nunca asignaba.
- *
- *   AHORA: filtra por unidad_policial_id en la consulta SQL directamente,
- *   usando AgenteRepositoryPort.obtenerDisponiblesPorUnidad(unidadId).
- *   La comparación es por ID de BD, no por referencia de objeto Java.
+ * FIX 2 (AsignacionRepositoryPort): la Asignacion ahora se persiste
+ *   en BD a través del puerto de salida correspondiente.
+ *   Antes se creaba en memoria pero nunca se guardaba en la tabla asignaciones.
  */
 public class AsignarAgenteService implements AsignarAgentePort {
-    
+ 
     private final AgenteRepositoryPort agenteRepository;
     private final IncidenteRepositoryPort incidenteRepository;
+    private final AsignacionRepositoryPort asignacionRepository;
  
     public AsignarAgenteService(AgenteRepositoryPort agenteRepository,
-                                IncidenteRepositoryPort incidenteRepository) {
-        this.agenteRepository    = agenteRepository;
-        this.incidenteRepository = incidenteRepository;
+                                IncidenteRepositoryPort incidenteRepository,
+                                AsignacionRepositoryPort asignacionRepository) {
+        this.agenteRepository      = agenteRepository;
+        this.incidenteRepository   = incidenteRepository;
+        this.asignacionRepository  = asignacionRepository;
     }
-    
+ 
     @Override
     public void ejecutar(String incidenteId) {
  
@@ -60,9 +58,8 @@ public class AsignarAgenteService implements AsignarAgentePort {
         if (unidad == null)
             throw new IllegalStateException(
                 "El incidente no tiene CAI asignado. " +
-                "Ejecute AsignarCAIAIncidente antes de asignar un agente.");
+                "Ejecute /derivar antes de /asignar.");
  
-         // FIX: consulta SQL filtra por unidad_policial_id → comparación por ID, no por referencia
         List<Agente> disponibles = agenteRepository
             .obtenerDisponiblesPorUnidad(unidad.getId());
  
@@ -85,6 +82,8 @@ public class AsignarAgenteService implements AsignarAgentePort {
         incidente.agregarAsignacion(asignacion);
         incidente.marcarAgenteAsignado();
  
+        // Persistir los tres objetos afectados
+        asignacionRepository.guardar(asignacion);   // FIX: antes no se guardaba
         incidenteRepository.guardar(incidente);
         agenteRepository.actualizarEstado(agente);
     }

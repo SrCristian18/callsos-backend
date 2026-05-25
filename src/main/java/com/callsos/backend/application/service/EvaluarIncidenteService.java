@@ -16,11 +16,15 @@ import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
- * Caso de uso: evaluar y finalizar un incidente atendido.
- * Transición: EN_PROCESO → FINALIZADO.
+ * Caso de uso: el agente finaliza la atención del incidente.
+ *
+ * Transición: EN_ATENCION → FINALIZADO
+ *
+ * FIX: se comparaba contra EN_PROCESO que fue renombrado a EN_ATENCION.
+ * Se usa el método semántico incidente.finalizar() en lugar de cambiarEstado().
  */
-public class EvaluarIncidenteService implements EvaluarIncidentePort{
-    
+public class EvaluarIncidenteService implements EvaluarIncidentePort {
+ 
     private final IncidenteRepositoryPort incidenteRepository;
  
     public EvaluarIncidenteService(IncidenteRepositoryPort incidenteRepository) {
@@ -35,12 +39,13 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort{
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
  
-        if (!EstadoIncidente.EN_PROCESO.equals(incidente.getEstado()))
+        if (!EstadoIncidente.EN_ATENCION.equals(incidente.getEstado()))
             throw new IllegalStateException(
-                "Solo se puede evaluar un incidente EN_PROCESO. Estado actual: "
+                "Solo se puede evaluar un incidente EN_ATENCION. Estado actual: "
                 + incidente.getEstado());
  
-        incidente.cambiarEstado(EstadoIncidente.FINALIZADO);
+        incidente.finalizar();
         incidenteRepository.guardar(incidente);
     }
 }
+ 
