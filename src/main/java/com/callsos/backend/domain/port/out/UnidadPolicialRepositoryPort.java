@@ -20,5 +20,9 @@ import java.util.Optional;
  */
 public interface UnidadPolicialRepositoryPort {
     
+    /** Busca el CAI más cercano a una ubicación (Haversine en SQL). */
     Optional<UnidadPolicial> buscarPorUbicacion(Ubicacion ubicacion);
+ 
+    /** Busca una unidad por su ID — necesario para ReporteAdministrativo. */
+    Optional<UnidadPolicial> buscarPorId(String id);
 }

@@ -19,11 +19,11 @@ import javax.sql.DataSource;
 import java.util.Optional;
  
 @Component
-public class AgenteByRepositoryMySQL implements AgenteByIdRepositoryPort{
+public class AgenteByidRepositoryMySQL implements AgenteByIdRepositoryPort{
     
     private final JdbcTemplate jdbc;
  
-    public AgenteByIdRepositoryMySQL(DataSource dataSource) {
+    public AgenteByidRepositoryMySQLQL(DataSource dataSource) {
         this.jdbc = new JdbcTemplate(dataSource);
     }
  
