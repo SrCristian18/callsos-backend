@@ -18,7 +18,16 @@ import java.util.List;
  */
 public interface AgenteRepositoryPort {
     
+    /** Todos los agentes en estado DISPONIBLE (cualquier unidad). */
     List<Agente> obtenerDisponibles();
+ 
+    /**
+     * Agentes DISPONIBLES filtrados por unidad policial.
+     *
+     * Se agrega para corregir el bug de AsignarAgenteService:
+     * el filtro se hace en SQL por ID, no en memoria por referencia Java.
+     */
+    List<Agente> obtenerDisponiblesPorUnidad(String unidadPolicialId);
  
     void actualizarEstado(Agente agente);
 }

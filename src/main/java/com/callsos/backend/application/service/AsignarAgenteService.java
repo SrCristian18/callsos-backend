@@ -23,7 +23,19 @@ import java.util.UUID;
 
 /**
  * Caso de uso: asignar un agente disponible a un incidente.
- * Recibe el ID del incidente y lo carga internamente.
+ *
+ * PRECONDICIÓN: el incidente debe estar en estado DERIVADO_A_CAI
+ * (AsignarCAIAIncidenteService debe haberse ejecutado antes).
+ *
+ * BUG CORREGIDO:
+ *   ANTES: unidad.getSubordinados().contains(a)
+ *   → Comparaba referencias en memoria. Los Agente de BD son instancias
+ *     nuevas, distintas a las de la lista de subordinados (vacía en BD).
+ *     equals() no estaba sobrescrito → siempre false → nunca asignaba.
+ *
+ *   AHORA: filtra por unidad_policial_id en la consulta SQL directamente,
+ *   usando AgenteRepositoryPort.obtenerDisponiblesPorUnidad(unidadId).
+ *   La comparación es por ID de BD, no por referencia de objeto Java.
  */
 public class AsignarAgenteService implements AsignarAgentePort {
     
@@ -47,17 +59,18 @@ public class AsignarAgenteService implements AsignarAgentePort {
         UnidadPolicial unidad = incidente.getUnidadPolicial();
         if (unidad == null)
             throw new IllegalStateException(
-                "El incidente no tiene una UnidadPolicial asignada.");
+                "El incidente no tiene CAI asignado. " +
+                "Ejecute AsignarCAIAIncidente antes de asignar un agente.");
  
-         // obtenerDisponibles() retorna todos los disponibles;
-        // filtramos por los que pertenecen a la unidad del incidente
-        List<Agente> disponibles = agenteRepository.obtenerDisponibles();
+         // FIX: consulta SQL filtra por unidad_policial_id → comparación por ID, no por referencia
+        List<Agente> disponibles = agenteRepository
+            .obtenerDisponiblesPorUnidad(unidad.getId());
+ 
         Agente agente = disponibles.stream()
-            .filter(a -> unidad.getSubordinados().contains(a))
             .findFirst()
             .orElseThrow(() -> new IllegalStateException(
                 "No hay agentes disponibles en la unidad: " + unidad.getNombre()));
-        
+ 
         Denuncia denuncia = incidente.getDenuncia();
         if (denuncia == null)
             throw new IllegalStateException(
@@ -70,9 +83,9 @@ public class AsignarAgenteService implements AsignarAgentePort {
         );
  
         incidente.agregarAsignacion(asignacion);
+        incidente.marcarAgenteAsignado();
  
-        // guardar estado actualizado del incidente y del agente
         incidenteRepository.guardar(incidente);
-        agenteRepository.actualizarEstado(agente);  // fue: guardar(agente)
+        agenteRepository.actualizarEstado(agente);
     }
 }
