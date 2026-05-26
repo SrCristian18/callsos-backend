@@ -122,5 +122,16 @@ public class ApplicationConfig {
             ReporteAdministrativoRepositoryPort reporteRepo) {
         return new CrearReporteAdministrativoService(incidenteRepo, unidadRepo, reporteRepo);
     }
+    
+    /**
+     * Caso de uso: agente confirma que va en camino.
+     * Puente entre flujo de negocio (Fase 1) y tracking WebSocket (Fase 2).
+     */
+    @Bean
+    public com.callsos.backend.domain.port.in.MarcarAgenteEnCaminoPort marcarAgenteEnCaminoPort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.MarcarAgenteEnCaminoService(incidenteRepo);
+    }
 }
  
+    

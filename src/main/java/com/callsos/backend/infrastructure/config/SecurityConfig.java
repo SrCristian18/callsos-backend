@@ -72,6 +72,8 @@ public class SecurityConfig {
                     .hasAnyRole("COMANDO", "OPERADOR_CAI")
                 .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/asignar")
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
+                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/en-camino")
+                    .hasRole("AGENTE")
                 .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/atender")
                     .hasRole("AGENTE")
                 .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/evaluar")
