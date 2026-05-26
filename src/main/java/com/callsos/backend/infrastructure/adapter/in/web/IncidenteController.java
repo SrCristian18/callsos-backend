@@ -18,6 +18,7 @@ import com.callsos.backend.domain.port.in.CambiarEstadoIncidentePort;
 import com.callsos.backend.domain.port.in.ConsultarEstadoIncidentePort;
 import com.callsos.backend.domain.port.in.CrearIncidentePort;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
+import com.callsos.backend.domain.port.in.MarcarAgenteEnCaminoPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CambiarEstadoRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CrearIncidenteRequest;
@@ -26,27 +27,20 @@ import com.callsos.backend.infrastructure.adapter.in.web.mapper.IncidenteMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Adaptador de entrada REST para el agregado Incidente.
  *
- * Responsabilidades:
- *   1. Recibir la petición HTTP y validar el DTO con @Valid.
- *   2. Traducir DTO → dominio mediante IncidenteMapper.
- *   3. Invocar el puerto de entrada correspondiente.
- *   4. Traducir dominio → DTO de respuesta y devolver HTTP status correcto.
- *
- * Lo que NO hace este adaptador:
- *   - No contiene lógica de negocio (eso es del dominio).
- *   - No conoce las implementaciones concretas (Services).
- *   - No accede a repositorios ni infraestructura.
+ * Flujo completo de endpoints en orden de ejecución:
+ *   POST   /api/incidentes            → DENUNCIANTE crea el incidente
+ *   PATCH  /{id}/derivar              → COMANDO asigna el CAI más cercano
+ *   PATCH  /{id}/asignar              → OPERADOR_CAI asigna un agente disponible
+ *   PATCH  /{id}/en-camino            → AGENTE confirma que va en camino  ← NUEVO
+ *   PATCH  /{id}/atender              → AGENTE llega al lugar (EN_ATENCION)
+ *   PATCH  /{id}/evaluar              → AGENTE finaliza la atención
+ *   PATCH  /{id}/cancelar             → DENUNCIANTE cancela el incidente
+ *   GET    /{id}/estado               → cualquier actor consulta el estado
  */
 
 @RestController
@@ -58,6 +52,7 @@ public class IncidenteController {
     private final ConsultarEstadoIncidentePort consultarEstado;
     private final AsignarCAIAIncidentePort asignarCAI;
     private final AsignarAgentePort asignarAgente;
+    private final MarcarAgenteEnCaminoPort marcarEnCamino;
     private final AtenderIncidentePort atenderIncidente;
     private final EvaluarIncidentePort evaluarIncidente;
     
@@ -66,6 +61,7 @@ public class IncidenteController {
                                ConsultarEstadoIncidentePort consultarEstado,
                                AsignarCAIAIncidentePort asignarCAI,
                                AsignarAgentePort asignarAgente,
+                               MarcarAgenteEnCaminoPort marcarEnCamino,
                                AtenderIncidentePort atenderIncidente,
                                EvaluarIncidentePort evaluarIncidente) {
         this.crearIncidente   = crearIncidente;
@@ -73,12 +69,13 @@ public class IncidenteController {
         this.consultarEstado  = consultarEstado;
         this.asignarCAI       = asignarCAI;
         this.asignarAgente    = asignarAgente;
+        this.marcarEnCamino   = marcarEnCamino;
         this.atenderIncidente = atenderIncidente;
         this.evaluarIncidente = evaluarIncidente;
     
     }
     
-    /** POST /api/incidentes — DENUNCIANTE crea el incidente. */
+    /** POST /api/incidentes — DENUNCIANTE crea el incidente. Responde 201. */
     @PostMapping
     public ResponseEntity<IncidenteResponse> crear(
             @Valid @RequestBody CrearIncidenteRequest request) {
@@ -90,13 +87,13 @@ public class IncidenteController {
             .body(IncidenteMapper.toResponse(incidente));
     }
  
-    /** GET /api/incidentes/{id}/estado */
+    /** GET /{id}/estado — consulta el estado actual. Solo lectura. */
     @GetMapping("/{id}/estado")
     public ResponseEntity<EstadoIncidente> consultarEstado(@PathVariable String id) {
         return ResponseEntity.ok(consultarEstado.ejecutar(id));
     }
  
-    /** PATCH /api/incidentes/{id}/estado — cambio manual (admin) */
+    /** PATCH /{id}/estado — cambio manual de estado (admin). */
     @PatchMapping("/{id}/estado")
     public ResponseEntity<Void> cambiarEstado(
             @PathVariable String id,
@@ -105,38 +102,44 @@ public class IncidenteController {
         return ResponseEntity.noContent().build();
     }
  
-    /** PATCH /api/incidentes/{id}/derivar — COMANDO deriva al CAI más cercano. */
+    /** PATCH /{id}/derivar — COMANDO deriva al CAI más cercano (Haversine). */
     @PatchMapping("/{id}/derivar")
     public ResponseEntity<Void> derivarACAI(@PathVariable String id) {
         asignarCAI.ejecutar(id);
         return ResponseEntity.noContent().build();
     }
  
-    /** PATCH /api/incidentes/{id}/asignar — OPERADOR_CAI asigna agente. */
+    /** PATCH /{id}/asignar — OPERADOR_CAI asigna agente disponible. */
     @PatchMapping("/{id}/asignar")
     public ResponseEntity<Void> asignarAgente(@PathVariable String id) {
         asignarAgente.ejecutar(id);
         return ResponseEntity.noContent().build();
     }
  
-    /** PATCH /api/incidentes/{id}/atender — AGENTE llega al lugar. */
+    /** PATCH /{id}/en-camino — AGENTE confirma que va en camino al lugar. */
+    @PatchMapping("/{id}/en-camino")
+    public ResponseEntity<Void> marcarEnCamino(@PathVariable String id) {
+        marcarEnCamino.ejecutar(id);
+        return ResponseEntity.noContent().build();
+    }
+ 
+    /** PATCH /{id}/atender — AGENTE llega al lugar (AGENTE_EN_CAMINO → EN_ATENCION). */
     @PatchMapping("/{id}/atender")
     public ResponseEntity<Void> atender(@PathVariable String id) {
         atenderIncidente.ejecutar(id);
         return ResponseEntity.noContent().build();
     }
  
-    /** PATCH /api/incidentes/{id}/evaluar — AGENTE finaliza la atención. */
+    /** PATCH /{id}/evaluar — AGENTE finaliza la atención (EN_ATENCION → FINALIZADO). */
     @PatchMapping("/{id}/evaluar")
     public ResponseEntity<Void> evaluar(@PathVariable String id) {
         evaluarIncidente.ejecutar(id);
         return ResponseEntity.noContent().build();
     }
  
-    /** PATCH /api/incidentes/{id}/cancelar — DENUNCIANTE cancela. */
+    /** PATCH /{id}/cancelar — DENUNCIANTE cancela si ya no necesita intervención. */
     @PatchMapping("/{id}/cancelar")
-    public ResponseEntity<Void> cancelar(@PathVariable String id,
-            @Valid @RequestBody CambiarEstadoRequest request) {
+    public ResponseEntity<Void> cancelar(@PathVariable String id) {
         cambiarEstado.ejecutar(id, EstadoIncidente.CANCELADO);
         return ResponseEntity.noContent().build();
     }
