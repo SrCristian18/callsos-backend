@@ -10,14 +10,15 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  jpa:
-    hibernate:
-      ddl-auto: none     # Cambiado a 'none' para evitar conflictos con la inicialización manual de Docker
-    show-sql: true       # Para que puedan ver las consultas en la consola de Docker
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        format_sql: true
+  # JDBC puro — sin Hibernate ni EntityManager.
+  # Se eliminó la sección jpa porque el proyecto usa JdbcTemplate directamente.
+  # spring-boot-starter-data-jpa fue reemplazado por spring-boot-starter-jdbc
+  # en el pom.xml, lo que elimina el ruido de Hibernate en los logs de arranque.
 
 server:
   port: 8080 # El puerto que expusimos en el Dockerfile y Compose
+  
+# ── JWT ─────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:callsos-secret-key-must-be-at-least-256-bits-for-HS256-algorithm}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}  

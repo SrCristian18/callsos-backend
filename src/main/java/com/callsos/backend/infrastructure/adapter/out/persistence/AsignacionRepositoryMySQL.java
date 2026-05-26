@@ -10,31 +10,17 @@ package com.callsos.backend.infrastructure.adapter.out.persistence;
  */
 
 import com.callsos.backend.domain.enums.EstadoAsignacion;
+import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
+import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
  
 import javax.sql.DataSource;
+import java.time.LocalDateTime;
 import java.util.Optional;
  
-/**
- * Adaptador de salida: implementa AsignacionRepositoryPort con JDBC + MySQL.
- *
- * BUG CORREGIDO en buscarPorIncidente():
- *   La versión anterior usaba un ResultSetExtractor con la lógica invertida:
- *   devolvía Optional.empty() cuando rs.next() era true (había resultados)
- *   y Optional.empty() cuando no había. Siempre retornaba vacío.
- *
- *   Causa: el constructor de Asignacion tiene efectos secundarios
- *   (llama a agente.asignar()), lo que hace imposible reconstruir
- *   una Asignacion desde BD con el constructor normal.
- * 
- * Solución Fase 0: buscarPorIncidente() retorna solo los metadatos
- *   (id, estado) sin reconstituir el objeto completo. Suficiente para
- *   las operaciones actuales. En Fase 1 se añadirá un constructor
- *   de reconstitución sin efectos secundarios.
- */
 @Component
 public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
  
@@ -63,48 +49,65 @@ public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
     }
     
     /**
-     * Busca si existe una asignación ACTIVA para el incidente dado.
+     * FIX: implementación real de buscarPorIncidente().
      *
-     * Retorna Optional.empty() si no hay asignación activa.
-     * Retorna Optional con la asignación si existe — pero sin reconstituir
-     * el objeto completo (limitación documentada arriba).
+     * ANTES: siempre retornaba Optional.empty() — placeholder documentado.
      *
-     * Uso actual: verificar existencia antes de crear una nueva asignación.
+     * AHORA: hace JOIN con agentes para reconstituir el Agente,
+     * y usa Asignacion.reconstituir() (factory method sin efectos de dominio)
+     * para construir el objeto sin disparar agente.asignar() nuevamente.
+     *
+     * Nota: Denuncia se pasa como null porque la reconstitución completa
+     * requeriría JOIN adicional con denuncias e incidentes. Para el uso
+     * actual (verificar existencia y estado) es suficiente.
+     * En Fase 2 se puede extender el JOIN si se necesita la Denuncia completa.
      */
     @Override
     public Optional<Asignacion> buscarPorIncidente(String incidenteId) {
         String sql = """
-            SELECT COUNT(*) AS total
-            FROM asignaciones
-            WHERE incidente_id = ?
-              AND estado = 'ACTIVA'
+            SELECT a.id, a.fecha_asignacion, a.estado,
+                   ag.id AS ag_id, ag.nombre AS ag_nombre,
+                   ag.direccion AS ag_dir, ag.telefono AS ag_tel,
+                   ag.latitud AS ag_lat, ag.longitud AS ag_lon
+            FROM asignaciones a
+            JOIN agentes ag ON ag.id = a.agente_id
+            WHERE a.incidente_id = ?
+              AND a.estado = 'ACTIVA'
+            ORDER BY a.fecha_asignacion DESC
+            LIMIT 1
             """;
         
-        Integer count = jdbc.queryForObject(sql, Integer.class, incidenteId);
-        
-        // Si existe al menos una asignación activa, retornamos empty indicando
-        // "ya hay asignación" — el llamador verifica con isPresent() invertido.
-        // TODO Fase 1: reconstituir Asignacion completa con constructor de reconstitución.
-        if (count != null && count > 0) {
-            // Hay asignación activa: retornar un Optional presente vacío es semánticamente
-            // incorrecto. Lo documentamos y lo marcamos para refactor.
-            // Por ahora el contrato es: Optional.empty() = sin asignación activa.
-            return Optional.empty(); // placeholder — ver TODO arriba
-       
-        }
-        return Optional.empty();
+        return jdbc.query(sql, rs -> {
+            if (!rs.next()) return Optional.empty();
+ 
+            double lat = rs.getDouble("ag_lat");
+            double lon = rs.getDouble("ag_lon");
+            Ubicacion ubicacion = (lat == 0 && lon == 0)
+                ? null : new Ubicacion(lat, lon);
+ 
+            Agente agente = new Agente(
+                rs.getString("ag_id"),
+                rs.getString("ag_nombre"),
+                rs.getString("ag_dir"),
+                ubicacion,
+                rs.getString("ag_tel")
+            );
+ 
+            return Optional.of(Asignacion.reconstituir(
+                rs.getString("id"),
+                rs.getObject("fecha_asignacion", LocalDateTime.class),
+                EstadoAsignacion.valueOf(rs.getString("estado")),
+                agente,
+                null   // Denuncia: JOIN extendido pendiente Fase 2
+            ));
+        }, incidenteId);
     }
     
-    /**
-     * Verifica si el incidente ya tiene una asignación activa.
-     * Método auxiliar más semántico que buscarPorIncidente() en su estado actual.
-     */
+    /** Método auxiliar semántico — usado internamente cuando solo se necesita saber si existe. */
     public boolean tieneAsignacionActiva(String incidenteId) {
-        String sql = """
-            SELECT COUNT(*) FROM asignaciones
-            WHERE incidente_id = ? AND estado = 'ACTIVA'
-            """;
-        Integer count = jdbc.queryForObject(sql, Integer.class, incidenteId);
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM asignaciones WHERE incidente_id = ? AND estado = 'ACTIVA'",
+            Integer.class, incidenteId);
         return count != null && count > 0;
     }
 }

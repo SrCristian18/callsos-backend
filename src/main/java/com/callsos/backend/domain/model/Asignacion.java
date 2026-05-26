@@ -14,16 +14,17 @@ import java.time.LocalDateTime;
 import java.util.Objects;
  
 /**
+/**
  * Clase ternaria: surge de la Denuncia.
  *
  * Regla de negocio: sin una Denuncia no puede existir una Asignacion.
- * La Denuncia ya garantiza la existencia de Denunciante e Incidente,
- * por lo que la Asignacion hereda transitivamente esas dependencias.
  *
- * Al crearse, ocupa al Agente (lo marca como OCUPADO).
- * Al finalizar, libera al Agente (lo marca como DISPONIBLE).
+ * CONSTRUCTORES:
+ *   - Asignacion(id, agente, denuncia)  → creación nueva, dispara agente.asignar()
+ *   - reconstituir(...)                 → reconstrucción desde BD, sin efectos de dominio
  *
- * Ciclo de vida: ACTIVA → FINALIZADA
+ * La separación entre creación y reconstitución es el patrón correcto en DDD:
+ * los invariantes de negocio solo aplican al crear, no al reconstruir.
  */
 
 public class Asignacion {
@@ -34,6 +35,7 @@ public class Asignacion {
     private final Agente agente;
     private final Denuncia denuncia; // OBLIGATORIO — origen de la asignación
  
+    // ── Constructor de CREACIÓN — con efectos de dominio ──────────────────
     public Asignacion(String id, Agente agente, Denuncia denuncia) {
         
         Objects.requireNonNull(denuncia,
@@ -54,6 +56,38 @@ public class Asignacion {
         this.agente.asignar();
     }
     
+    // ── Constructor de RECONSTITUCIÓN — sin efectos de dominio ────────────
+ 
+    /**
+     * Reconstruye una Asignacion desde la capa de persistencia.
+     *
+     * NO valida disponibilidad del agente ni llama a agente.asignar().
+     * El estado ya existe en BD — solo se restaura en memoria.
+     * EXCLUSIVO para uso de adaptadores de persistencia.
+     */
+    private Asignacion(String id, LocalDateTime fechaAsignacion,
+                       EstadoAsignacion estado, Agente agente, Denuncia denuncia) {
+        this.id              = id;
+        this.fechaAsignacion = fechaAsignacion;
+        this.estado          = estado;
+        this.agente          = agente;
+        this.denuncia        = denuncia;
+    }
+    
+    /**
+     * Factory method de reconstitución — punto de entrada para los adaptadores.
+     * Uso: Asignacion.reconstituir(id, fecha, estado, agente, denuncia)
+     */
+    public static Asignacion reconstituir(String id, LocalDateTime fechaAsignacion,
+                                          EstadoAsignacion estado,
+                                          Agente agente, Denuncia denuncia) {
+        Objects.requireNonNull(id, "ID de asignación requerido.");
+        Objects.requireNonNull(agente, "Agente requerido para reconstitución.");
+        Objects.requireNonNull(estado, "Estado requerido para reconstitución.");
+        return new Asignacion(id, fechaAsignacion, estado, agente, denuncia);
+    }
+    
+    // ── Comportamiento de dominio ──────────────────────────────────────────
     /**
      * Finaliza la asignación y libera al agente.
      * Solo puede ejecutarse si el estado es ACTIVA.
@@ -65,8 +99,7 @@ public class Asignacion {
         this.agente.liberar();
     }
  
-    // ── Acceso al Incidente y Denunciante a través de la Denuncia ──────────
- 
+    // ── Getters ────────────────────────────────────────────────────────────
     /** Atajo de conveniencia: incidente al que responde esta asignación. */
     public Incidente getIncidente() {
         return denuncia.getIncidente();
