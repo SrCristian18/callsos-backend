@@ -48,7 +48,7 @@ public class Denunciante {
     public String getCorreo()   { return correo; }
     public String getTokenFcm() { return tokenFcm; }
  
-    public boolean tieneNotificacionesActivas() {
+    public boolean tieneTokenFcm() {
         return tokenFcm != null && !tokenFcm.isBlank();
     }
 }

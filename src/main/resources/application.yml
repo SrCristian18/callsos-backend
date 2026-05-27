@@ -22,3 +22,12 @@ server:
 jwt:
   secret: ${JWT_SECRET:callsos-secret-key-must-be-at-least-256-bits-for-HS256-algorithm}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}  
+  
+# ── WebSocket ─────────────────────────────────────────────────────────────────
+# No requiere configuración adicional en yml — WebSocketConfig.java lo gestiona.
+# El endpoint /ws está disponible en ws://host:8080/ws
+ 
+# ── Firebase ──────────────────────────────────────────────────────────────────
+# serviceAccountKey.json debe estar en src/main/resources/
+# En Docker se puede montar como volumen o secret.
+# Agregar al .gitignore: src/main/resources/serviceAccountKey.json

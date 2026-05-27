@@ -11,25 +11,28 @@ package com.callsos.backend.application.service;
 
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.event.IncidenteFinalizadoEvent;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
- * Caso de uso: el agente finaliza la atención del incidente.
- *
+ * Caso de uso: el agente finaliza la atención.
  * Transición: EN_ATENCION → FINALIZADO
- *
- * FIX: se comparaba contra EN_PROCESO que fue renombrado a EN_ATENCION.
- * Se usa el método semántico incidente.finalizar() en lugar de cambiarEstado().
+ * Publica IncidenteFinalizadoEvent para notificar al denunciante.
  */
 public class EvaluarIncidenteService implements EvaluarIncidentePort {
  
-    private final IncidenteRepositoryPort incidenteRepository;
+     private final IncidenteRepositoryPort incidenteRepository;
+    private final EventPublisherPort eventPublisher;
  
-    public EvaluarIncidenteService(IncidenteRepositoryPort incidenteRepository) {
+    public EvaluarIncidenteService(IncidenteRepositoryPort incidenteRepository,
+                                   EventPublisherPort eventPublisher) {
         this.incidenteRepository = incidenteRepository;
+        this.eventPublisher      = eventPublisher;
     }
+ 
  
     @Override
     public void ejecutar(String incidenteId) {
@@ -46,6 +49,12 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort {
  
         incidente.finalizar();
         incidenteRepository.guardar(incidente);
+ 
+        eventPublisher.publicar(new IncidenteFinalizadoEvent(
+            incidenteId,
+            incidente.getDenunciante().getId(),
+            EstadoIncidente.FINALIZADO
+        ));
     }
 }
  
