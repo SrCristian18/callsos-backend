@@ -9,32 +9,9 @@ package com.callsos.backend.infrastructure.config;
  * @author LENOVO
  */
 
-import com.callsos.backend.application.service.AsignarAgenteService;
-import com.callsos.backend.application.service.AsignarCAIAIncidenteService;
-import com.callsos.backend.application.service.AtenderIncidenteService;
-import com.callsos.backend.application.service.CambiarEstadoIncidenteService;
-import com.callsos.backend.application.service.ConsultarEstadoIncidenteService;
-import com.callsos.backend.application.service.CrearIncidenteService;
-import com.callsos.backend.application.service.CrearReporteAdministrativoService;
-import com.callsos.backend.application.service.CrearReporteHallazgosService;
-import com.callsos.backend.application.service.EvaluarIncidenteService;
-import com.callsos.backend.domain.port.in.AsignarAgentePort;
-import com.callsos.backend.domain.port.in.AsignarCAIAIncidentePort;
-import com.callsos.backend.domain.port.in.AtenderIncidentePort;
-import com.callsos.backend.domain.port.in.CambiarEstadoIncidentePort;
-import com.callsos.backend.domain.port.in.ConsultarEstadoIncidentePort;
-import com.callsos.backend.domain.port.in.CrearIncidentePort;
-import com.callsos.backend.domain.port.in.CrearReporteAdministrativoPort;
-import com.callsos.backend.domain.port.in.CrearReporteHallazgosPort;
-import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
-import com.callsos.backend.domain.port.out.AgenteByIdRepositoryPort;
-import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
-import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
-import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
-import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
-import com.callsos.backend.domain.port.out.ReporteAdministrativoRepositoryPort;
-import com.callsos.backend.domain.port.out.ReporteHallazgosRepositoryPort;
-import com.callsos.backend.domain.port.out.UnidadPolicialRepositoryPort;
+import com.callsos.backend.application.service.*;
+import com.callsos.backend.domain.port.in.*;
+import com.callsos.backend.domain.port.out.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
  
@@ -44,11 +21,8 @@ import org.springframework.context.annotation.Configuration;
  * Cada @Bean conecta un Puerto de entrada con su implementación concreta,
  * inyectándole los Puertos de salida que necesita.
  *
- * Los adaptadores de salida (@Component) y los de servicios externos
- * (GeolocalizacionGPSAdapter, NotificacionFirebaseAdapter) son detectados
- * automáticamente por Spring via @Component — no necesitan @Bean aquí.
- * Solo los casos de uso (capa de aplicación, sin anotaciones Spring) necesitan
- * registro explícito.
+ * Los adaptadores (@Component) son detectados automáticamente.
+ * Solo los casos de uso (sin anotaciones Spring) necesitan registro aquí.
  */
 @Configuration
 public class ApplicationConfig {
@@ -69,10 +43,6 @@ public class ApplicationConfig {
         return new AsignarCAIAIncidenteService(incidenteRepo, unidadRepo);
     }
  
-    /**
-     * FIX: AsignarAgenteService ahora recibe AsignacionRepositoryPort
-     * para persistir la Asignacion en BD (antes se creaba en memoria y se perdía).
-     */
     @Bean
     public AsignarAgentePort asignarAgentePort(
             AgenteRepositoryPort agenteRepo,
@@ -99,10 +69,27 @@ public class ApplicationConfig {
         return new AtenderIncidenteService(incidenteRepo);
     }
  
+    /**
+     * EvaluarIncidente ahora necesita EventPublisherPort
+     * para publicar IncidenteFinalizadoEvent → notificación push.
+     */
     @Bean
     public EvaluarIncidentePort evaluarIncidentePort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new EvaluarIncidenteService(incidenteRepo);
+            IncidenteRepositoryPort incidenteRepo,
+            EventPublisherPort eventPublisher) {
+        return new EvaluarIncidenteService(incidenteRepo, eventPublisher);
+    }
+    
+    /**
+     * MarcarAgenteEnCamino necesita EventPublisherPort y AsignacionRepository
+     * para publicar AgenteEnCaminoEvent con el ID del agente.
+     */
+    @Bean
+    public MarcarAgenteEnCaminoPort marcarAgenteEnCaminoPort(
+            IncidenteRepositoryPort incidenteRepo,
+            AsignacionRepositoryPort asignacionRepo,
+            EventPublisherPort eventPublisher) {
+        return new MarcarAgenteEnCaminoService(incidenteRepo, asignacionRepo, eventPublisher);
     }
  
     // ── Reportes ───────────────────────────────────────────────────────────
@@ -121,16 +108,6 @@ public class ApplicationConfig {
             UnidadPolicialRepositoryPort unidadRepo,
             ReporteAdministrativoRepositoryPort reporteRepo) {
         return new CrearReporteAdministrativoService(incidenteRepo, unidadRepo, reporteRepo);
-    }
-    
-    /**
-     * Caso de uso: agente confirma que va en camino.
-     * Puente entre flujo de negocio (Fase 1) y tracking WebSocket (Fase 2).
-     */
-    @Bean
-    public com.callsos.backend.domain.port.in.MarcarAgenteEnCaminoPort marcarAgenteEnCaminoPort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new com.callsos.backend.application.service.MarcarAgenteEnCaminoService(incidenteRepo);
     }
 }
  
