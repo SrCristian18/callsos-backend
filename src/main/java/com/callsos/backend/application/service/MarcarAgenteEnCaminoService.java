@@ -9,25 +9,35 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.event.AgenteEnCaminoEvent;
+import com.callsos.backend.domain.model.Agente;
+import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.MarcarAgenteEnCaminoPort;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
  * Caso de uso: el agente confirma que va en camino al incidente.
- *
  * Transición: AGENTE_ASIGNADO → AGENTE_EN_CAMINO
- * La validación de la transición la ejecuta el agregado Incidente.
  *
- * Efecto en Fase 2: este cambio de estado activa el canal WebSocket
- * de tracking GPS para el denunciante.
+ * Publica AgenteEnCaminoEvent para:
+ *   - Notificar al denunciante vía Firebase FCM
+ *   - Activar el canal WebSocket de tracking GPS
  */
 public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
     
-    private final IncidenteRepositoryPort incidenteRepository;
+     private final IncidenteRepositoryPort incidenteRepository;
+    private final AsignacionRepositoryPort asignacionRepository;
+    private final EventPublisherPort eventPublisher;
  
-    public MarcarAgenteEnCaminoService(IncidenteRepositoryPort incidenteRepository) {
-        this.incidenteRepository = incidenteRepository;
+    public MarcarAgenteEnCaminoService(IncidenteRepositoryPort incidenteRepository,
+                                       AsignacionRepositoryPort asignacionRepository,
+                                       EventPublisherPort eventPublisher) {
+        this.incidenteRepository  = incidenteRepository;
+        this.asignacionRepository = asignacionRepository;
+        this.eventPublisher       = eventPublisher;
     }
  
     @Override
@@ -38,9 +48,20 @@ public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
  
-        // Delega la transición al agregado — él valida que sea AGENTE_ASIGNADO
         incidente.marcarAgenteEnCamino();
- 
         incidenteRepository.guardar(incidente);
+ 
+        // Obtener el ID del agente asignado desde la asignación activa
+        String agenteId = asignacionRepository
+            .buscarPorIncidente(incidenteId)
+            .map(a -> a.getAgente().getId())
+            .orElse("desconocido");
+ 
+        // Publicar evento — Firebase y WebSocket escucharán esto
+        eventPublisher.publicar(new AgenteEnCaminoEvent(
+            incidenteId,
+            incidente.getDenunciante().getId(),
+            agenteId
+        ));
     }
 }
