@@ -21,24 +21,30 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Configuración de Spring Security con JWT y roles.
+ * Configuración de seguridad con JWT y roles.
  *
- * Matriz de acceso:
- * ┌─────────────────────────────────────┬────────────────────────────────┐
- * │ Endpoint                            │ Roles permitidos               │
- * ├─────────────────────────────────────┼────────────────────────────────┤
- * │ POST /api/auth/token                │ Público (obtener token)        │
- * │ POST /api/incidentes                │ DENUNCIANTE                    │
- * │ GET  /api/incidentes/{id}/estado    │ DENUNCIANTE, AGENTE, OPERADOR  │
- * │ PATCH /api/incidentes/{id}/derivar  │ COMANDO, OPERADOR_CAI          │
- * │ PATCH /api/incidentes/{id}/asignar  │ OPERADOR_CAI, COMANDO          │
- * │ PATCH /api/incidentes/{id}/atender  │ AGENTE                         │
- * │ PATCH /api/incidentes/{id}/evaluar  │ AGENTE                         │
- * │ PATCH /api/incidentes/{id}/cancelar │ DENUNCIANTE                    │
- * │ POST  /api/reportes/hallazgos       │ AGENTE                         │
- * │ POST  /api/reportes/administrativo  │ OPERADOR_CAI, COMANDO          │
- * │ /swagger-ui/** y /v3/api-docs/**    │ Público (documentación)        │
- * └─────────────────────────────────────┴────────────────────────────────┘
+ * Fase 2: se agregó /ws/** como endpoint público para WebSocket.
+ * La autenticación en WebSocket se gestiona en el handshake STOMP
+ * (el cliente envía el JWT en el header Authorization del CONNECT frame).
+ *
+ * Matriz de acceso completa:
+ * ┌─────────────────────────────────────────┬──────────────────────────────┐
+ * │ Endpoint                                │ Roles                        │
+ * ├─────────────────────────────────────────┼──────────────────────────────┤
+ * │ POST /api/auth/token                    │ Público                      │
+ * │ /ws/**                                  │ Público (auth en STOMP)      │
+ * │ /swagger-ui/**, /v3/api-docs/**         │ Público                      │
+ * │ POST /api/incidentes                    │ DENUNCIANTE                  │
+ * │ GET  /api/incidentes/{id}/estado        │ DENUNCIANTE,AGENTE,OPERADOR  │
+ * │ PATCH /api/incidentes/{id}/derivar      │ COMANDO, OPERADOR_CAI        │
+ * │ PATCH /api/incidentes/{id}/asignar      │ OPERADOR_CAI, COMANDO        │
+ * │ PATCH /api/incidentes/{id}/en-camino    │ AGENTE                       │
+ * │ PATCH /api/incidentes/{id}/atender      │ AGENTE                       │
+ * │ PATCH /api/incidentes/{id}/evaluar      │ AGENTE                       │
+ * │ PATCH /api/incidentes/{id}/cancelar     │ DENUNCIANTE, COMANDO         │
+ * │ POST  /api/reportes/hallazgos           │ AGENTE                       │
+ * │ POST  /api/reportes/administrativo      │ OPERADOR_CAI, COMANDO        │
+ * └─────────────────────────────────────────┴──────────────────────────────┘
  */
 @Configuration
 @EnableWebSecurity
@@ -61,6 +67,7 @@ public class SecurityConfig {
  
                 // ── Públicos ──────────────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()          // WebSocket
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
  
                 // ── Incidentes ────────────────────────────────────────────
