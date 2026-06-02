@@ -1,6 +1,6 @@
 -- =============================================================================
 -- callsos-bd  —  Schema completo
--- Versión: Fase 0
+-- Versión: Fase 3
 -- Nota: los scripts en /docker-entrypoint-initdb.d se ejecutan en orden
 --       alfabético. Este archivo se llama schema.sql para ejecutarse antes
 --       que data.sql.
@@ -188,4 +188,22 @@ CREATE TABLE IF NOT EXISTS reportes_administrativos (
     INDEX idx_incidente (incidente_id),
     CONSTRAINT fk_ra_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id),
     CONSTRAINT fk_ra_autoridad FOREIGN KEY (autoridad_id) REFERENCES unidades_policiales(id)
+);
+
+-- =============================================================================
+-- TABLA: auditoria_incidente  (Fase 3)
+-- Trazabilidad completa del ciclo de vida del incidente.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS auditoria_incidente (
+    id              BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    incidente_id    VARCHAR(36)      NOT NULL,
+    estado_anterior VARCHAR(30)      NULL,
+    estado_nuevo    VARCHAR(30)      NOT NULL,
+    actor_id        VARCHAR(36)      NULL,
+    actor_rol       VARCHAR(20)      NULL,
+    timestamp       DATETIME         NOT NULL DEFAULT NOW(),
+    detalle         VARCHAR(255)     NULL,
+    PRIMARY KEY (id),
+    INDEX idx_incidente (incidente_id),
+    INDEX idx_timestamp (timestamp)
 );
