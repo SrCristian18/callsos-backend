@@ -48,24 +48,36 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
      * Ahora guarda y actualiza unidad_policial_id correctamente.
      */
     @Override
-    public void guardar(Incidente incidente) {
-        String unidadId = (incidente.getUnidadPolicial() != null)
-            ? incidente.getUnidadPolicial().getId()
-            : null;
- 
-        String sql = """
+public void guardar(Incidente incidente) {
+
+    String unidadId = (incidente.getUnidadPolicial() != null)
+        ? incidente.getUnidadPolicial().getId()
+        : null;
+
+    int filas = jdbc.update("""
+        UPDATE incidentes
+        SET descripcion = ?,
+            estado = ?,
+            latitud = ?,
+            longitud = ?,
+            unidad_policial_id = ?
+        WHERE id = ?
+        """,
+        incidente.getDescripcion(),
+        incidente.getEstado().name(),
+        incidente.getUbicacion().getLatitud(),
+        incidente.getUbicacion().getLongitud(),
+        unidadId,
+        incidente.getId()
+    );
+
+    if (filas == 0) {
+        jdbc.update("""
             INSERT INTO incidentes
-              (id, fecha_hora, tipo, descripcion, estado,
-               latitud, longitud, denunciante_id, unidad_policial_id)
+            (id, fecha_hora, tipo, descripcion, estado,
+             latitud, longitud, denunciante_id, unidad_policial_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              descripcion        = VALUES(descripcion),
-              estado             = VALUES(estado),
-              latitud            = VALUES(latitud),
-              longitud           = VALUES(longitud),
-              unidad_policial_id = VALUES(unidad_policial_id)
-            """;
-        jdbc.update(sql,
+            """,
             incidente.getId(),
             incidente.getFechaHora(),
             incidente.getTipo().name(),
@@ -77,6 +89,7 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
             unidadId
         );
     }
+}
  
     /**
      * FIX: la versión anterior no leía unidad_policial_id de la BD.
