@@ -10,15 +10,19 @@ package com.callsos.backend.infrastructure.adapter.in.web.dto;
  */
 import jakarta.validation.constraints.NotBlank;
  
-/** DTO de entrada para el endpoint de autenticación. */
+/**
+ * DTO de entrada para el endpoint de login.
+ * Reemplaza la versión anterior que usaba userId+rol directamente
+ * sin verificar credenciales reales.
+ */
 public class AuthRequest {
-
-    @NotBlank(message = "El ID de usuario es obligatorio")
-    private String userId;
  
-    @NotBlank(message = "El rol es obligatorio")
-    private String rol;
+    @NotBlank(message = "El username es obligatorio")
+    private String username;
  
-    public String getUserId() { return userId; }
-    public String getRol()    { return rol; }
+    @NotBlank(message = "La contraseña es obligatoria")
+    private String password;
+ 
+    public String getUsername() { return username; }
+    public String getPassword() { return password; }
 }

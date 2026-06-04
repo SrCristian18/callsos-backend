@@ -19,37 +19,36 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
+ 
 /**
  * Configuración de seguridad con JWT y roles.
  *
- * Fase 2: se agregó /ws/** como endpoint público para WebSocket.
- * La autenticación en WebSocket se gestiona en el handshake STOMP
- * (el cliente envía el JWT en el header Authorization del CONNECT frame).
- *
- * Matriz de acceso completa:
- * ┌─────────────────────────────────────────┬──────────────────────────────┐
- * │ Endpoint                                │ Roles                        │
- * ├─────────────────────────────────────────┼──────────────────────────────┤
- * │ POST /api/auth/token                    │ Público                      │
- * │ /ws/**                                  │ Público (auth en STOMP)      │
- * │ /swagger-ui/**, /v3/api-docs/**         │ Público                      │
- * │ POST /api/incidentes                    │ DENUNCIANTE                  │
- * │ GET  /api/incidentes/{id}/estado        │ DENUNCIANTE,AGENTE,OPERADOR  │
- * │ PATCH /api/incidentes/{id}/derivar      │ COMANDO, OPERADOR_CAI        │
- * │ PATCH /api/incidentes/{id}/asignar      │ OPERADOR_CAI, COMANDO        │
- * │ PATCH /api/incidentes/{id}/en-camino    │ AGENTE                       │
- * │ PATCH /api/incidentes/{id}/atender      │ AGENTE                       │
- * │ PATCH /api/incidentes/{id}/evaluar      │ AGENTE                       │
- * │ PATCH /api/incidentes/{id}/cancelar     │ DENUNCIANTE, COMANDO         │
- * │ POST  /api/reportes/hallazgos           │ AGENTE                       │
- * │ POST  /api/reportes/administrativo      │ OPERADOR_CAI, COMANDO        │
- * └─────────────────────────────────────────┴──────────────────────────────┘
+ * Matriz de acceso completa — rutas /api/v1/:
+ * ┌──────────────────────────────────────────────┬───────────────────────────────┐
+ * │ Endpoint                                     │ Roles                         │
+ * ├──────────────────────────────────────────────┼───────────────────────────────┤
+ * │ POST /api/v1/auth/login                      │ Público                       │
+ * │ /ws/**                                       │ Público (auth en STOMP)       │
+ * │ /swagger-ui/**, /v3/api-docs/**              │ Público                       │
+ * │ POST /api/v1/incidentes                      │ DENUNCIANTE                   │
+ * │ GET  /api/v1/incidentes/{id}/estado          │ todos los roles               │
+ * │ PATCH /api/v1/incidentes/{id}/estado         │ OPERADOR_CAI, COMANDO         │
+ * │ PATCH /api/v1/incidentes/{id}/derivar        │ COMANDO, OPERADOR_CAI         │
+ * │ PATCH /api/v1/incidentes/{id}/asignar        │ OPERADOR_CAI, COMANDO         │
+ * │ PATCH /api/v1/incidentes/{id}/en-camino      │ AGENTE                        │
+ * │ PATCH /api/v1/incidentes/{id}/atender        │ AGENTE                        │
+ * │ PATCH /api/v1/incidentes/{id}/evaluar        │ AGENTE                        │
+ * │ PATCH /api/v1/incidentes/{id}/cancelar       │ DENUNCIANTE, COMANDO          │
+ * │ POST  /api/v1/reportes/hallazgos             │ AGENTE                        │
+ * │ POST  /api/v1/reportes/administrativo        │ OPERADOR_CAI, COMANDO         │
+ * │ GET   /api/v1/auditoria/**                   │ OPERADOR_CAI, COMANDO         │
+ * │ PATCH /api/v1/denunciantes/{id}/token        │ DENUNCIANTE                   │
+ * └──────────────────────────────────────────────┴───────────────────────────────┘
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
+ 
     private final JwtAuthFilter jwtAuthFilter;
  
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
@@ -66,40 +65,48 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
  
                 // ── Públicos ──────────────────────────────────────────────
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/ws/**").permitAll()          // WebSocket
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
  
                 // ── Incidentes ────────────────────────────────────────────
-                .requestMatchers(HttpMethod.POST,  "/api/incidentes")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/incidentes")
                     .hasRole("DENUNCIANTE")
-                .requestMatchers(HttpMethod.GET,   "/api/incidentes/*/estado")
+                .requestMatchers(HttpMethod.GET,   "/api/v1/incidentes/*/estado")
                     .hasAnyRole("DENUNCIANTE", "AGENTE", "OPERADOR_CAI", "COMANDO")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/derivar")
-                    .hasAnyRole("COMANDO", "OPERADOR_CAI")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/asignar")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/estado")
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/en-camino")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/derivar")
+                    .hasAnyRole("COMANDO", "OPERADOR_CAI")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/asignar")
+                    .hasAnyRole("OPERADOR_CAI", "COMANDO")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/en-camino")
                     .hasRole("AGENTE")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/atender")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/atender")
                     .hasRole("AGENTE")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/evaluar")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/evaluar")
                     .hasRole("AGENTE")
-                .requestMatchers(HttpMethod.PATCH, "/api/incidentes/*/cancelar")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/cancelar")
                     .hasAnyRole("DENUNCIANTE", "COMANDO")
  
                 // ── Reportes ──────────────────────────────────────────────
-                .requestMatchers(HttpMethod.POST, "/api/reportes/hallazgos")
+                .requestMatchers(HttpMethod.POST, "/api/v1/reportes/hallazgos")
                     .hasRole("AGENTE")
-                .requestMatchers(HttpMethod.POST, "/api/reportes/administrativo")
+                .requestMatchers(HttpMethod.POST, "/api/v1/reportes/administrativo")
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
  
-                // Cualquier otro endpoint requiere autenticación válida
+                // ── Auditoría ─────────────────────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/v1/auditoria/**")
+                    .hasAnyRole("OPERADOR_CAI", "COMANDO")
+ 
+                // ── Denunciante ───────────────────────────────────────────
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/denunciantes/*/token")
+                    .hasRole("DENUNCIANTE")
+ 
                 .anyRequest().authenticated()
             )
- 
-            // Registrar el filtro JWT antes del filtro de autenticación estándar
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter,
+                UsernamePasswordAuthenticationFilter.class);
  
         return http.build();
     }

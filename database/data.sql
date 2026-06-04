@@ -45,3 +45,25 @@ INSERT INTO unidades_policiales (nombre, direccion, latitud, longitud, telefono)
 -- =============================================================================
 INSERT IGNORE INTO denunciantes (id, nombre, origen, telefono, correo, token_fcm) VALUES
 ('test-denunciante-001', 'Juan Pérez', 'Cartagena', '3001234567', 'juan@test.com', NULL);
+-- =============================================================================
+-- Usuarios de autenticación — contraseña de todos: "password123"
+-- Hash generado con BCrypt rounds=10.
+-- Para generar nuevos hashes: https://bcrypt-generator.com
+-- o con Java: new BCryptPasswordEncoder().encode("password123")
+-- =============================================================================
+INSERT IGNORE INTO usuarios (id, username, password, rol, actor_id, activo) VALUES
+('usr-001', 'juan.denunciante',
+ '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ 'DENUNCIANTE', 'test-denunciante-001', TRUE),
+
+('usr-002', 'pedro.agente',
+ '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ 'AGENTE', 'test-denunciante-001', TRUE),
+
+('usr-003', 'operador.cai',
+ '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ 'OPERADOR_CAI', 'test-denunciante-001', TRUE),
+
+('usr-004', 'comandante',
+ '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ 'COMANDO', 'test-denunciante-001', TRUE);
