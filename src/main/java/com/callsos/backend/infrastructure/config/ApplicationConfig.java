@@ -12,8 +12,11 @@ package com.callsos.backend.infrastructure.config;
 import com.callsos.backend.application.service.*;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.port.out.*;
+import com.callsos.backend.infrastructure.config.security.JwtService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
  
 /**
  * Registro explícito de todos los casos de uso como beans de Spring.
@@ -27,6 +30,30 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ApplicationConfig {
  
+    // ── Seguridad / Autenticación ──────────────────────────────────────────
+ 
+    /**
+     * BCryptPasswordEncoder: verifica contraseñas hasheadas en tabla usuarios.
+     * Se declara como @Bean para que Spring lo inyecte en LoginService
+     * y también esté disponible para hashear contraseñas en otros puntos.
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+ 
+    /**
+     * Caso de uso: autenticar usuario con username + password → JWT.
+     * Usa PasswordEncoder para verificar el hash BCrypt almacenado en BD.
+     */
+    @Bean
+    public LoginPort loginPort(
+            UsuarioRepositoryPort usuarioRepo,
+            JwtService jwtService,
+            PasswordEncoder passwordEncoder) {
+        return new LoginService(usuarioRepo, jwtService, passwordEncoder);
+    }
+    
     // ── Incidente ──────────────────────────────────────────────────────────
  
     @Bean

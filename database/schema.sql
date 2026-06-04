@@ -207,3 +207,19 @@ CREATE TABLE IF NOT EXISTS auditoria_incidente (
     INDEX idx_incidente (incidente_id),
     INDEX idx_timestamp (timestamp)
 );
+-- =============================================================================
+-- TABLA: usuarios
+-- Credenciales de autenticación para todos los actores del sistema.
+-- actor_id apunta al ID real en denunciantes / agentes / unidades_policiales
+-- según el rol, permitiendo que el JWT lleve el ID del entidad de negocio.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS usuarios (
+    id          VARCHAR(36)  NOT NULL,
+    username    VARCHAR(100) NOT NULL UNIQUE,
+    password    VARCHAR(255) NOT NULL,  -- hash BCrypt rounds=10
+    rol         VARCHAR(20)  NOT NULL,
+    actor_id    VARCHAR(36)  NOT NULL,  -- ID en denunciantes / agentes / unidades_policiales
+    activo      BOOLEAN      NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (id),
+    INDEX idx_username (username)
+);

@@ -9,9 +9,9 @@ package com.callsos.backend.infrastructure.adapter.in.web;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.AuthRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.AuthResponse;
-import com.callsos.backend.infrastructure.config.security.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,47 +20,37 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
  
 /**
- * Adaptador de entrada: autenticación y emisión de JWT.
+ * Adaptador de entrada: autenticación real con username + password.
  *
- * FASE 1 — versión simplificada:
- *   Acepta cualquier userId + rol válido y emite un token.
- *   No valida contra BD de usuarios (eso es Fase 2 con tabla usuarios).
+ * POST /api/v1/auth/login
+ * Body: { "username": "juan.denunciante", "password": "password123" }
+ * Response 200: { "token": "eyJ...", "actorId": "...", "rol": "DENUNCIANTE" }
+ * Response 404: credenciales inválidas (IllegalArgumentException → GlobalExceptionHandler)
  *
- *   Uso para pruebas con Postman/Insomnia:
- *   POST /api/auth/token
- *   { "userId": "test-denunciante-001", "rol": "DENUNCIANTE" }
- *   → { "token": "eyJ...", "userId": "...", "rol": "DENUNCIANTE" }
- *
- *   El token se usa en los demás endpoints:
- *   Authorization: Bearer eyJ...
- *
- * FASE 2: validar userId contra tabla denunciantes/agentes según el rol.
+ * El token JWT se usa en Authorization: Bearer <token> en todos los demás endpoints.
+ * actorId es el ID que Flutter necesita para identificarse (ej: registrar tokenFcm).
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
-    
-     private final JwtService jwtService;
  
-    public AuthController(JwtService jwtService) {
-        this.jwtService = jwtService;
+    private final LoginPort loginPort;
+ 
+    public AuthController(LoginPort loginPort) {
+        this.loginPort = loginPort;
     }
  
-    @PostMapping("/token")
-    public ResponseEntity<AuthResponse> generarToken(
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody AuthRequest request) {
  
-        // Validar que el rol sea uno de los permitidos
-        try {
-            com.callsos.backend.domain.enums.RolUsuario.valueOf(request.getRol());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
-                "Rol inválido: " + request.getRol() +
-                ". Roles válidos: DENUNCIANTE, AGENTE, OPERADOR_CAI, COMANDO");
-        }
+        LoginPort.LoginResultado resultado =
+            loginPort.ejecutar(request.getUsername(), request.getPassword());
  
-        String token = jwtService.generarToken(request.getUserId(), request.getRol());
-        return ResponseEntity.ok(
-            new AuthResponse(token, request.getUserId(), request.getRol()));
+        return ResponseEntity.ok(new AuthResponse(
+            resultado.token(),
+            resultado.actorId(),
+            resultado.rol()
+        ));
     }
 }
