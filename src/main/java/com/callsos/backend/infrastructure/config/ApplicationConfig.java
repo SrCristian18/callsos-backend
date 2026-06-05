@@ -13,6 +13,7 @@ import com.callsos.backend.application.service.*;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.port.out.*;
 import com.callsos.backend.infrastructure.config.security.JwtService;
+import com.callsos.backend.domain.port.in.RegistrarTokenFcmPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -53,7 +54,7 @@ public class ApplicationConfig {
             PasswordEncoder passwordEncoder) {
         return new LoginService(usuarioRepo, jwtService, passwordEncoder);
     }
-    
+ 
     // ── Incidente ──────────────────────────────────────────────────────────
  
     @Bean
@@ -96,21 +97,13 @@ public class ApplicationConfig {
         return new AtenderIncidenteService(incidenteRepo);
     }
  
-    /**
-     * EvaluarIncidente ahora necesita EventPublisherPort
-     * para publicar IncidenteFinalizadoEvent → notificación push.
-     */
     @Bean
     public EvaluarIncidentePort evaluarIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
             EventPublisherPort eventPublisher) {
         return new EvaluarIncidenteService(incidenteRepo, eventPublisher);
     }
-    
-    /**
-     * MarcarAgenteEnCamino necesita EventPublisherPort y AsignacionRepository
-     * para publicar AgenteEnCaminoEvent con el ID del agente.
-     */
+ 
     @Bean
     public MarcarAgenteEnCaminoPort marcarAgenteEnCaminoPort(
             IncidenteRepositoryPort incidenteRepo,
@@ -136,6 +129,16 @@ public class ApplicationConfig {
             ReporteAdministrativoRepositoryPort reporteRepo) {
         return new CrearReporteAdministrativoService(incidenteRepo, unidadRepo, reporteRepo);
     }
-}
  
-    
+    // ── Token FCM ─────────────────────────────────────────────────────────
+ 
+    /**
+     * Caso de uso: registrar o actualizar el token FCM del denunciante.
+     * Necesario para que Firebase envíe notificaciones push al dispositivo.
+     */
+    @Bean
+    public RegistrarTokenFcmPort registrarTokenFcmPort(
+            DenuncianteRepositoryPort denuncianteRepo) {
+        return new com.callsos.backend.application.service.RegistrarTokenFcmService(denuncianteRepo);
+    }
+}

@@ -20,4 +20,17 @@ import java.util.Optional;
 public interface DenuncianteRepositoryPort {
     
     Optional<Denunciante> buscarPorId(String id);
+    
+    /**
+     * Actualiza el token FCM del denunciante en BD.
+     *
+     * Firebase renueva los tokens periódicamente.
+     * Flutter debe llamar a PATCH /api/v1/denunciantes/{id}/token
+     * cada vez que reciba un token nuevo del SDK de Firebase,
+     * para que el backend siempre tenga el token vigente.
+     *
+     * @param denuncianteId  ID del denunciante autenticado
+     * @param tokenFcm       Nuevo token emitido por Firebase en el dispositivo
+     */
+    void actualizarTokenFcm(String denuncianteId, String tokenFcm);
 }

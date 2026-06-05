@@ -20,11 +20,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
  
-/**
- * Adaptador de salida: implementa DenuncianteRepositoryPort con JDBC + MySQL.
- * (Equivalente al UsuarioRepositoryMySQL del diagrama v3 — renombrado
- *  para mantener la semántica acordada: Usuario → Denunciante.)
- */
 @Component
 public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
     
@@ -43,6 +38,19 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
             """;
         return jdbc.query(sql, new DenuncianteRowMapper(), id)
             .stream().findFirst();
+    }
+    
+    /**
+     * Actualiza el token FCM en BD.
+     * Se ejecuta cada vez que Flutter recibe un token nuevo de Firebase.
+     * Sin este token actualizado, las notificaciones push no llegan.
+     */
+    @Override
+    public void actualizarTokenFcm(String denuncianteId, String tokenFcm) {
+        jdbc.update(
+            "UPDATE denunciantes SET token_fcm = ? WHERE id = ?",
+            tokenFcm, denuncianteId
+        );
     }
     
      private static class DenuncianteRowMapper implements RowMapper<Denunciante> {
