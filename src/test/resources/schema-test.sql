@@ -98,3 +98,13 @@ CREATE TABLE IF NOT EXISTS denuncias (
     incidente_id   VARCHAR(36) NOT NULL,
     PRIMARY KEY (id)
 );
+
+CREATE TABLE IF NOT EXISTS usuarios (
+    id        VARCHAR(36)  NOT NULL,
+    username  VARCHAR(100) NOT NULL UNIQUE,
+    password  VARCHAR(255) NOT NULL,
+    rol       VARCHAR(20)  NOT NULL,
+    actor_id  VARCHAR(36)  NOT NULL,
+    activo    BOOLEAN      NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (id)
+);

@@ -81,7 +81,7 @@ public class UbicacionAgenteRepositoryMySQL implements UbicacionAgenteRepository
             SELECT agente_id, incidente_id, latitud, longitud, timestamp
             FROM ubicaciones_agente
             WHERE agente_id = ? AND incidente_id = ?
-            ORDER BY timestamp DESC
+            ORDER BY timestamp DESC, id DESC
             LIMIT 1
             """,
             rs -> rs.next()

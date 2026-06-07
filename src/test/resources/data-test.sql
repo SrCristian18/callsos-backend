@@ -20,3 +20,26 @@ INSERT INTO agentes (id, nombre, direccion, latitud, longitud, telefono, estado,
 VALUES ('ag-test-001', 'Pedro Test', 'Av. Test', 10.41, -75.54, '3002222222', 'DISPONIBLE', 'cai-test-001');
 
 
+
+-- Usuario de prueba para LoginServiceTest de integración
+-- Contraseña: "password123" hasheada con BCrypt rounds=10
+INSERT INTO usuarios (id, username, password, rol, actor_id, activo)
+VALUES (
+    'usr-test-001',
+    'juan.test',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+    'DENUNCIANTE',
+    'den-test-001',
+    TRUE
+);
+
+-- Usuario inactivo para verificar que activo=FALSE lo excluye
+INSERT INTO usuarios (id, username, password, rol, actor_id, activo)
+VALUES (
+    'usr-test-002',
+    'inactivo.test',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+    'DENUNCIANTE',
+    'den-test-001',
+    FALSE
+);
