@@ -44,7 +44,7 @@ import org.springframework.web.bind.annotation.*;
  */
 
 @RestController
-@RequestMapping("/api/incidentes")
+@RequestMapping("/api/v1/incidentes")
 public class IncidenteController {
     
     private final CrearIncidentePort crearIncidente;
