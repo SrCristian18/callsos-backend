@@ -53,17 +53,17 @@ INSERT IGNORE INTO denunciantes (id, nombre, origen, telefono, correo, token_fcm
 -- =============================================================================
 INSERT IGNORE INTO usuarios (id, username, password, rol, actor_id, activo) VALUES
 ('usr-001', 'juan.denunciante',
- '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
  'DENUNCIANTE', 'test-denunciante-001', TRUE),
 
 ('usr-002', 'pedro.agente',
- '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
  'AGENTE', 'test-denunciante-001', TRUE),
 
 ('usr-003', 'operador.cai',
- '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
  'OPERADOR_CAI', 'test-denunciante-001', TRUE),
 
 ('usr-004', 'comandante',
- '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
+ '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
  'COMANDO', 'test-denunciante-001', TRUE);

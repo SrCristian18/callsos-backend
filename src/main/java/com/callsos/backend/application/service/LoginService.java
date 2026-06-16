@@ -56,7 +56,7 @@ public class LoginService implements LoginPort{
         UsuarioCredencial credencial = usuarioRepository
             .buscarPorUsername(username)
             .orElseThrow(() -> new IllegalArgumentException(ERROR_CREDENCIALES));
- 
+   
         if (!passwordEncoder.matches(password, credencial.password())) {
             throw new IllegalArgumentException(ERROR_CREDENCIALES);
         }
