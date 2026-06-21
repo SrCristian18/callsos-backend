@@ -141,4 +141,30 @@ public class ApplicationConfig {
             DenuncianteRepositoryPort denuncianteRepo) {
         return new com.callsos.backend.application.service.RegistrarTokenFcmService(denuncianteRepo);
     }
+
+    // ── Consultas (Fase E) ─────────────────────────────────────────────────
+
+    @Bean
+    public com.callsos.backend.domain.port.in.ConsultarIncidentePort consultarIncidentePort(
+            com.callsos.backend.domain.port.out.IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.ConsultarIncidenteService(incidenteRepo);
+    }
+
+    @Bean
+    public com.callsos.backend.domain.port.in.ConsultarMisIncidentesPort consultarMisIncidentesPort(
+            com.callsos.backend.domain.port.out.IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.ConsultarMisIncidentesService(incidenteRepo);
+    }
+
+    @Bean
+    public com.callsos.backend.domain.port.in.ConsultarIncidentesAsignadosPort consultarIncidentesAsignadosPort(
+            com.callsos.backend.domain.port.out.IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.ConsultarIncidentesAsignadosService(incidenteRepo);
+    }
+
+    @Bean
+    public com.callsos.backend.domain.port.in.ConsultarIncidentesPorCAIPort consultarIncidentesPorCAIPort(
+            com.callsos.backend.domain.port.out.IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.ConsultarIncidentesPorCAIService(incidenteRepo);
+    }
 }

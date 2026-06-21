@@ -80,6 +80,14 @@ public class SecurityConfig {
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
 
                 // ── Denunciante ───────────────────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/*")
+                    .hasAnyRole("DENUNCIANTE", "AGENTE", "OPERADOR_CAI", "COMANDO")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/mis-incidentes")
+                    .hasRole("DENUNCIANTE")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/asignados")
+                    .hasRole("AGENTE")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/por-cai")
+                    .hasAnyRole("OPERADOR_CAI", "COMANDO")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/denunciantes/*/token")
                     .hasRole("DENUNCIANTE")
 
