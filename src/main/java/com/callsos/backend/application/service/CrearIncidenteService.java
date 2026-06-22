@@ -10,9 +10,11 @@ package com.callsos.backend.application.service;
  */
  
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.model.Denuncia;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.CrearIncidentePort;
+import com.callsos.backend.domain.port.out.DenunciaRepositoryPort;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
@@ -23,18 +25,31 @@ import java.util.UUID;
  * Caso de uso: crear un nuevo incidente a partir de una denuncia.
  *
  * Implementa CrearIncidentePort (puerto de entrada).
- * Depende de IncidenteRepositoryPort y DenuncianteRepositoryPort
- * (puertos de salida) — nunca de clases de infraestructura directamente.
+ * Depende de IncidenteRepositoryPort, DenuncianteRepositoryPort y
+ * DenunciaRepositoryPort (puertos de salida) — nunca de clases de
+ * infraestructura directamente.
+ *
+ * FIX (validación end-to-end): antes este servicio creaba el Incidente
+ * pero NUNCA creaba la Denuncia asociada (la clase Denuncia.java define
+ * en su propio comentario: "Es el origen de una Asignacion — sin
+ * Denuncia no hay Asignacion"). Como resultado, AsignarAgenteService
+ * rechazaba con IllegalStateException("El incidente no tiene una
+ * Denuncia vinculada.") CUALQUIER incidente creado por el flujo real de
+ * la aplicación — el bug bloqueaba el ciclo de vida completo de un
+ * incidente más allá de DERIVADO_A_CAI, sin importar los datos.
  */
 public class CrearIncidenteService implements CrearIncidentePort {
     
     private final IncidenteRepositoryPort incidenteRepository;
     private final DenuncianteRepositoryPort denuncianteRepository;
+    private final DenunciaRepositoryPort denunciaRepository;
  
     public CrearIncidenteService(IncidenteRepositoryPort incidenteRepository,
-                                 DenuncianteRepositoryPort denuncianteRepository) {
+                                 DenuncianteRepositoryPort denuncianteRepository,
+                                 DenunciaRepositoryPort denunciaRepository) {
         this.incidenteRepository  = incidenteRepository;
         this.denuncianteRepository = denuncianteRepository;
+        this.denunciaRepository   = denunciaRepository;
     }
     
     @Override
@@ -56,6 +71,21 @@ public class CrearIncidenteService implements CrearIncidentePort {
  
         // guardar() es void — persistimos y retornamos el mismo objeto
         incidenteRepository.guardar(incidente);
+
+        // FIX: crear y persistir la Denuncia asociada (orden obligatorio:
+        // el Incidente debe existir en BD primero — ver comentario de
+        // DenunciaRepositoryPort sobre FK violations).
+        Denuncia denuncia = new Denuncia(
+            UUID.randomUUID().toString(),
+            tipo,
+            descripcion,
+            ubicacion,
+            denunciante,
+            incidente
+        );
+        denunciaRepository.guardar(denuncia);
+        incidente.setDenuncia(denuncia);
+
         return incidente;
     }
 }

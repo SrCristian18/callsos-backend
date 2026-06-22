@@ -5,6 +5,7 @@ import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.UnidadPolicial;
+import com.callsos.backend.domain.port.out.DenunciaRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,9 +22,16 @@ import java.util.Optional;
 public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
 
     private final JdbcTemplate jdbc;
+    // FIX (validación end-to-end): inyectado para resolver
+    // incidente.getDenuncia() al reconstruir desde BD — antes mapRow()
+    // nunca cargaba la Denuncia asociada, lo que rompía AsignarAgenteService
+    // para CUALQUIER incidente real (no solo datos de prueba).
+    private final DenunciaRepositoryPort denunciaRepository;
 
-    public IncidenteRepositoryMySQL(DataSource dataSource) {
+    public IncidenteRepositoryMySQL(DataSource dataSource,
+                                    DenunciaRepositoryPort denunciaRepository) {
         this.jdbc = new JdbcTemplate(dataSource);
+        this.denunciaRepository = denunciaRepository;
     }
 
     @Override
@@ -67,11 +75,13 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
 
     @Override
     public Optional<Incidente> buscarPorId(String id) {
-        return jdbc.query(BASE_SQL + " WHERE i.id = ?",
+        Optional<Incidente> incidente = jdbc.query(BASE_SQL + " WHERE i.id = ?",
             rs -> {
                 if (!rs.next()) return Optional.empty();
                 return Optional.of(mapRow(rs));
             }, id);
+        incidente.ifPresent(this::cargarDenuncia);
+        return incidente;
     }
 
     @Override
@@ -80,22 +90,15 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
             estado.name(), id);
     }
 
-    /**
-     * Historial del denunciante — todos sus incidentes ordenados por fecha descendente.
-     * Permite al denunciante ver el historial completo en "Mis denuncias".
-     */
     @Override
     public List<Incidente> buscarPorDenunciante(String denuncianteId) {
-        return jdbc.query(
+        List<Incidente> lista = jdbc.query(
             BASE_SQL + " WHERE i.denunciante_id = ? ORDER BY i.fecha_hora DESC",
             new IncidenteRowMapper(), denuncianteId);
+        lista.forEach(this::cargarDenuncia);
+        return lista;
     }
 
-    /**
-     * Cola del agente — incidentes activos asignados a él.
-     * Busca en la tabla asignaciones los incidentes ACTIVOS del agente,
-     * filtrando por estados operativos (no finalizados ni cancelados).
-     */
     @Override
     public List<Incidente> buscarAsignadosAlAgente(String agenteId) {
         String sql = BASE_SQL + """
@@ -105,24 +108,33 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
               AND i.estado NOT IN ('FINALIZADO', 'CANCELADO')
             ORDER BY i.fecha_hora DESC
             """;
-        return jdbc.query(sql, new IncidenteRowMapper(), agenteId);
+        List<Incidente> lista = jdbc.query(sql, new IncidenteRowMapper(), agenteId);
+        lista.forEach(this::cargarDenuncia);
+        return lista;
     }
 
-    /**
-     * Panel del CAI — incidentes activos de la unidad policial.
-     * Excluye FINALIZADO y CANCELADO para mostrar solo la carga operativa actual.
-     */
     @Override
     public List<Incidente> buscarPorCAI(String unidadPolicialId) {
-        return jdbc.query(
+        List<Incidente> lista = jdbc.query(
             BASE_SQL + """
              WHERE i.unidad_policial_id = ?
                AND i.estado NOT IN ('FINALIZADO', 'CANCELADO')
              ORDER BY i.fecha_hora DESC
             """,
             new IncidenteRowMapper(), unidadPolicialId);
+        lista.forEach(this::cargarDenuncia);
+        return lista;
     }
 
+    // ── Helper: carga la Denuncia DESPUÉS de que el ResultSet principal
+    // está cerrado — evita el error de nested JDBC query.
+    // Si el incidente no tiene Denuncia en BD (incidentes previos al fix),
+    // ifPresent no hace nada y el incidente sigue sin Denuncia. Solo los
+    // nuevos incidentes creados post-fix tendrán Denuncia vinculada.
+    private void cargarDenuncia(Incidente incidente) {
+        denunciaRepository.buscarPorIncidente(incidente.getId(), incidente)
+            .ifPresent(incidente::setDenuncia);
+    }
     // ── SQL base reutilizable ─────────────────────────────────────────────────
 
     private static final String BASE_SQL = """
@@ -146,8 +158,9 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
         """;
 
     // ── Mapper compartido ─────────────────────────────────────────────────────
-
-    private static Incidente mapRow(ResultSet rs) throws SQLException {
+    // FIX: ya no es estático — necesita denunciaRepository (instancia) para
+    // completar incidente.setDenuncia() tras reconstruir el Incidente.
+    private Incidente mapRow(ResultSet rs) throws SQLException {
         Denunciante denunciante = new Denunciante(
             rs.getString("denunciante_id"),
             rs.getString("d_nombre"),
@@ -174,13 +187,16 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
                 rs.getString("u_telefono")
             ));
         }
+        // NOTA: la Denuncia NO se carga aquí — se carga en cargarDenuncia()
+        // DESPUÉS de que este ResultSet esté cerrado, para evitar el error
+        // de JDBC nested query (segunda query dentro de un ResultSet activo).
         return incidente;
     }
 
-    private static class IncidenteRowMapper implements RowMapper<Incidente> {
+    private class IncidenteRowMapper implements RowMapper<Incidente> {
         @Override
         public Incidente mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return IncidenteRepositoryMySQL.mapRow(rs);
+            return IncidenteRepositoryMySQL.this.mapRow(rs);
         }
     }
 }

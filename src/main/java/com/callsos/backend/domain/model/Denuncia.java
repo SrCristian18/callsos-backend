@@ -54,6 +54,48 @@ public class Denuncia {
         this.incidente    = incidente;
         this.fecha        = LocalDateTime.now();
     }
+
+    // ── Constructor de RECONSTITUCIÓN — sin efectos de dominio ────────────
+    //
+    // FIX (validación end-to-end): mismo patrón ya usado por Asignacion
+    // (ver Asignacion.reconstituir) — necesario porque Denuncia <-> Incidente
+    // tienen una referencia mutua: el Incidente reconstruido desde BD
+    // (IncidenteRepositoryMySQL.mapRow) debe poder pasarse aquí como
+    // parámetro YA CONSTRUIDO, evitando el ciclo infinito de
+    // "para construir Denuncia necesito Incidente, para construir
+    // Incidente necesito Denuncia".
+    //
+    // No valida disponibilidad de nada ni dispara efectos de dominio —
+    // el estado ya existe en BD, solo se restaura en memoria.
+    private Denuncia(String id, LocalDateTime fecha, TipoIncidente tipo,
+                     String descripcion, Ubicacion ubicacion,
+                     Denunciante denunciante, Incidente incidente) {
+        this.id           = id;
+        this.fecha         = fecha;
+        this.tipo         = tipo;
+        this.descripcion  = descripcion;
+        this.ubicacion    = ubicacion;
+        this.denunciante  = denunciante;
+        this.incidente    = incidente;
+    }
+
+    /**
+     * Factory method de reconstitución — punto de entrada para los
+     * adaptadores de persistencia.
+     *
+     * Uso: Denuncia.reconstituir(id, fecha, tipo, descripcion, ubicacion,
+     *                             denunciante, incidente)
+     */
+    public static Denuncia reconstituir(String id, LocalDateTime fecha,
+                                        TipoIncidente tipo, String descripcion,
+                                        Ubicacion ubicacion,
+                                        Denunciante denunciante,
+                                        Incidente incidente) {
+        Objects.requireNonNull(id, "ID de denuncia requerido para reconstitución.");
+        Objects.requireNonNull(denunciante, "Denunciante requerido para reconstitución.");
+        Objects.requireNonNull(incidente, "Incidente requerido para reconstitución.");
+        return new Denuncia(id, fecha, tipo, descripcion, ubicacion, denunciante, incidente);
+    }
     
     public String getId()               { return id; }
     public LocalDateTime getFecha()     { return fecha; }
