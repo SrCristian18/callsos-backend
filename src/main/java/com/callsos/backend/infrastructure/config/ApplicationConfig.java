@@ -60,8 +60,9 @@ public class ApplicationConfig {
     @Bean
     public CrearIncidentePort crearIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
-            DenuncianteRepositoryPort denuncianteRepo) {
-        return new CrearIncidenteService(incidenteRepo, denuncianteRepo);
+            DenuncianteRepositoryPort denuncianteRepo,
+            DenunciaRepositoryPort denunciaRepo) {
+        return new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo);
     }
  
     @Bean

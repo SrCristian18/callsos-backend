@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
  
 import javax.sql.DataSource;
+import java.util.List;
 import java.util.Optional;
  
 /**
@@ -55,9 +56,63 @@ public class DenunciaRepositoryMySQL implements DenunciaRepositoryPort{
     }
  
     @Override
-    public Optional<Denuncia> buscarPorIncidente(String incidenteId) {
-        // Reconstitución completa pendiente — requeriría JOIN circular.
-        // Para verificar existencia usar tieneAsignacionActiva equivalente.
-        return Optional.empty();
+    public Optional<Denuncia> buscarPorIncidente(String incidenteId,
+            com.callsos.backend.domain.model.Incidente incidente) {
+        // FIX (validación end-to-end): antes este método era un stub que
+        // devolvía Optional.empty() siempre ("Reconstitución completa
+        // pendiente — requeriría JOIN circular"). Esto rompía
+        // AsignarAgenteService, que exige incidente.getDenuncia() != null
+        // — ningún incidente real (creado vía CrearIncidenteService) podía
+        // pasar de DERIVADO_A_CAI a AGENTE_ASIGNADO.
+        //
+        // El JOIN circular se resuelve recibiendo el Incidente YA
+        // RECONSTRUIDO como parámetro (lo arma el llamador,
+        // IncidenteRepositoryMySQL.mapRow) y usando Denuncia.reconstituir()
+        // (sin validación de "incidente nuevo", sin fecha=now()).
+        String sql = """
+            SELECT den.id, den.fecha, den.tipo, den.descripcion,
+                   den.latitud, den.longitud,
+                   dn.id          AS dn_id,
+                   dn.nombre      AS dn_nombre,
+                   dn.origen      AS dn_origen,
+                   dn.telefono    AS dn_telefono,
+                   dn.correo      AS dn_correo,
+                   dn.token_fcm   AS dn_token_fcm
+            FROM denuncias den
+            JOIN denunciantes dn ON dn.id = den.denunciante_id
+            WHERE den.incidente_id = ?
+            """;
+
+        List<Denuncia> resultado = jdbc.query(sql, (rs, rowNum) -> {
+            var denunciante = new com.callsos.backend.domain.model.Denunciante(
+                rs.getString("dn_id"),
+                rs.getString("dn_nombre"),
+                rs.getString("dn_origen"),
+                rs.getString("dn_telefono"),
+                rs.getString("dn_correo"),
+                rs.getString("dn_token_fcm")
+            );
+
+            // FIX ClassCastException: MySQL DECIMAL(10,8) → Java BigDecimal.
+            // rs.getDouble() hace la conversión automáticamente; getObject()
+            // devuelve BigDecimal que no es casteable a Double directamente.
+            double latVal = rs.getDouble("latitud");
+            double lonVal = rs.getDouble("longitud");
+            var ubicacion = (!rs.wasNull())
+                ? new com.callsos.backend.domain.valueobject.Ubicacion(latVal, lonVal)
+                : null;
+
+            return Denuncia.reconstituir(
+                rs.getString("id"),
+                rs.getTimestamp("fecha").toLocalDateTime(),
+                com.callsos.backend.domain.enums.TipoIncidente.valueOf(rs.getString("tipo")),
+                rs.getString("descripcion"),
+                ubicacion,
+                denunciante,
+                incidente
+            );
+        }, incidenteId);
+
+        return resultado.stream().findFirst();
     }
 }

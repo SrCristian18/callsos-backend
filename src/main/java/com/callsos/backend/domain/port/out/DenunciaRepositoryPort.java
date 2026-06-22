@@ -10,6 +10,7 @@ package com.callsos.backend.domain.port.out;
  */
 
 import com.callsos.backend.domain.model.Denuncia;
+import com.callsos.backend.domain.model.Incidente;
 import java.util.Optional;
  
 /**
@@ -27,5 +28,14 @@ public interface DenunciaRepositoryPort {
     
     void guardar(Denuncia denuncia);
  
-    Optional<Denuncia> buscarPorIncidente(String incidenteId);
+    /**
+     * Busca la Denuncia asociada a un Incidente.
+     *
+     * FIX (validación end-to-end): recibe el [incidente] YA RECONSTRUIDO
+     * como parámetro (en vez de reconstruirlo internamente) para resolver
+     * la dependencia circular Denuncia <-> Incidente sin recursión
+     * infinita — el llamador (IncidenteRepositoryMySQL.mapRow) ya tiene el
+     * Incidente armado en memoria cuando necesita completar su Denuncia.
+     */
+    Optional<Denuncia> buscarPorIncidente(String incidenteId, Incidente incidente);
 }

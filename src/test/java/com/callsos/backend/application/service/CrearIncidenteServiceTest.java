@@ -13,6 +13,7 @@ import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
+import com.callsos.backend.domain.port.out.DenunciaRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +40,7 @@ class CrearIncidenteServiceTest {
     
      @Mock IncidenteRepositoryPort incidenteRepo;
     @Mock DenuncianteRepositoryPort denuncianteRepo;
+    @Mock DenunciaRepositoryPort denunciaRepo;
  
     private CrearIncidenteService service;
  
@@ -48,7 +50,7 @@ class CrearIncidenteServiceTest {
  
     @BeforeEach
     void setUp() {
-        service = new CrearIncidenteService(incidenteRepo, denuncianteRepo);
+        service = new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo);
     }
  
     @Test
@@ -64,7 +66,12 @@ class CrearIncidenteServiceTest {
         assertNotNull(resultado.getId());
         assertEquals(TipoIncidente.ROBOS_O_ASALTOS, resultado.getTipo());
         assertEquals(denunciante, resultado.getDenunciante());
+        // FIX: verificar que el servicio también persiste la Denuncia
+        // y la vincula al incidente (requisito de AsignarAgenteService).
         verify(incidenteRepo, times(1)).guardar(any(Incidente.class));
+        verify(denunciaRepo,  times(1)).guardar(any());
+        assertNotNull(resultado.getDenuncia(),
+            "El incidente debe tener Denuncia vinculada tras ser creado");
     }
  
     @Test
@@ -78,5 +85,6 @@ class CrearIncidenteServiceTest {
                 "no-existe", TipoIncidente.ROBOS_O_ASALTOS, "desc", ubicacion));
  
         verify(incidenteRepo, never()).guardar(any());
+        verify(denunciaRepo,  never()).guardar(any());
     }
 }
