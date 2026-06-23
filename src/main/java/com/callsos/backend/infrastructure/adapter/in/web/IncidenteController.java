@@ -46,6 +46,7 @@ public class IncidenteController {
     private final ConsultarMisIncidentesPort consultarMisIncidentes;
     private final ConsultarIncidentesAsignadosPort consultarAsignados;
     private final ConsultarIncidentesPorCAIPort consultarPorCAI;
+    private final ConsultarIncidentesPorEstadoPort consultarPorEstado;
     private final AsignarCAIAIncidentePort asignarCAI;
     private final AsignarAgentePort asignarAgente;
     private final MarcarAgenteEnCaminoPort marcarEnCamino;
@@ -60,6 +61,7 @@ public class IncidenteController {
             ConsultarMisIncidentesPort consultarMisIncidentes,
             ConsultarIncidentesAsignadosPort consultarAsignados,
             ConsultarIncidentesPorCAIPort consultarPorCAI,
+            ConsultarIncidentesPorEstadoPort consultarPorEstado,
             AsignarCAIAIncidentePort asignarCAI,
             AsignarAgentePort asignarAgente,
             MarcarAgenteEnCaminoPort marcarEnCamino,
@@ -72,6 +74,7 @@ public class IncidenteController {
         this.consultarMisIncidentes = consultarMisIncidentes;
         this.consultarAsignados    = consultarAsignados;
         this.consultarPorCAI       = consultarPorCAI;
+        this.consultarPorEstado    = consultarPorEstado;
         this.asignarCAI            = asignarCAI;
         this.asignarAgente         = asignarAgente;
         this.marcarEnCamino        = marcarEnCamino;
@@ -127,6 +130,23 @@ public class IncidenteController {
             Authentication authentication) {
         String unidadId = authentication.getName();
         List<Incidente> incidentes = consultarPorCAI.ejecutar(unidadId);
+        return ResponseEntity.ok(IncidenteMapper.toResponseList(incidentes));
+    }
+
+    /**
+     * GET /por-estado?estado=CREADO — listado de Comando.
+     *
+     * FIX (validación end-to-end): resuelve el Gap 2 de deuda_backend.md.
+     * Devuelve todos los incidentes en el estado indicado sin filtrar por
+     * actorId. Diseñado para COMANDO (ver HomeComandoView) — solo COMANDO
+     * y OPERADOR_CAI tienen acceso a este endpoint (ver SecurityConfig).
+     *
+     * Ejemplo: GET /api/v1/incidentes/por-estado?estado=CREADO
+     */
+    @GetMapping("/por-estado")
+    public ResponseEntity<List<IncidenteResponse>> porEstado(
+            @RequestParam EstadoIncidente estado) {
+        List<Incidente> incidentes = consultarPorEstado.ejecutar(estado);
         return ResponseEntity.ok(IncidenteMapper.toResponseList(incidentes));
     }
 
