@@ -193,6 +193,15 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
         return incidente;
     }
 
+    @Override
+    public List<Incidente> buscarPorEstado(EstadoIncidente estado) {
+        List<Incidente> lista = jdbc.query(
+            BASE_SQL + " WHERE i.estado = ? ORDER BY i.fecha_hora DESC",
+            new IncidenteRowMapper(), estado.name());
+        lista.forEach(this::cargarDenuncia);
+        return lista;
+    }
+
     private class IncidenteRowMapper implements RowMapper<Incidente> {
         @Override
         public Incidente mapRow(ResultSet rs, int rowNum) throws SQLException {

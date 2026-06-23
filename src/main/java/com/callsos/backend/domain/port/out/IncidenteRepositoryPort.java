@@ -53,4 +53,10 @@ public interface IncidenteRepositoryPort {
      * @param unidadPolicialId  ID del CAI
      */
     List<Incidente> buscarPorCAI(String unidadPolicialId);
+
+    /**
+     * Busca todos los incidentes en un estado dado, sin filtrar por actor.
+     * Usado por ConsultarIncidentesPorEstadoPort (caso de uso de COMANDO).
+     */
+    List<Incidente> buscarPorEstado(EstadoIncidente estado);
 }

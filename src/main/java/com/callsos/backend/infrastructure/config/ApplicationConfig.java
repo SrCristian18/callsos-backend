@@ -168,4 +168,10 @@ public class ApplicationConfig {
             com.callsos.backend.domain.port.out.IncidenteRepositoryPort incidenteRepo) {
         return new com.callsos.backend.application.service.ConsultarIncidentesPorCAIService(incidenteRepo);
     }
+
+    @Bean
+    public ConsultarIncidentesPorEstadoPort consultarIncidentesPorEstadoPort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new ConsultarIncidentesPorEstadoService(incidenteRepo);
+    }
 }
