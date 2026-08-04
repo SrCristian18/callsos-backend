@@ -3,6 +3,7 @@ package com.callsos.backend.infrastructure.config;
 import com.callsos.backend.infrastructure.config.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -41,6 +42,19 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s ->
                 s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // Sin autenticación → 401 (estándar HTTP).
+            // Sin este bloque, Spring Security devuelve 403 por defecto
+            // para requests sin credenciales, lo que viola RFC 7235
+            // (401 = no autenticado, 403 = autenticado pero sin permiso).
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "No autenticado — se requiere JWT válido"
+                    )
+                )
+            )
 
             .authorizeHttpRequests(auth -> auth
 
