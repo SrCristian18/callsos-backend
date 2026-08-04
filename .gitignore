@@ -38,4 +38,4 @@ build/
 
 # Firebase credentials
 # src/main/resources/serviceAccountKey.json
-firebase/serviceAccountKey.json
+**/serviceAccountKey.json
