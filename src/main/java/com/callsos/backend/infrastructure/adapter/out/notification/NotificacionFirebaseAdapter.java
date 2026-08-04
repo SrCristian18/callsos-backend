@@ -15,8 +15,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
-import org.springframework.stereotype.Component;
- 
+
 /**
  * Adaptador de salida: envía notificaciones push vía Firebase Cloud Messaging.
  *
@@ -30,7 +29,7 @@ import org.springframework.stereotype.Component;
  * la notificación se omite con log de advertencia — no lanza excepción
  * para no romper el flujo de negocio.
  */
-@Component
+
 public class NotificacionFirebaseAdapter implements NotificacionPort{
  
     private final FirebaseMessaging firebaseMessaging;

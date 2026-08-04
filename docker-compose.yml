@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   # ── Base de Datos MySQL ──────────────────────────────────────────────────
@@ -23,23 +21,25 @@ services:
       - ./database:/docker-entrypoint-initdb.d
     networks:
       - red-callsos
-
-    # HEALTHCHECK: el backend no arrancará hasta que MySQL esté listo
-    # para aceptar conexiones. Sin esto, Spring falla al intentar conectarse
-    # mientras MySQL aún está inicializando (especialmente en el primer arranque
-    # cuando ejecuta los scripts .sql, que puede tardar varios segundos).
-    #
-    # interval: cada cuánto se verifica
-    # timeout: máximo que puede tardar el check
-    # retries: cuántos fallos consecutivos antes de marcar como unhealthy
-    # start_period: tiempo de gracia al inicio (MySQL tarda en arrancar)
+    
+    #Original
+    #healthcheck:
+    #  test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+    #         "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+    #  interval: 10s
+    #  timeout: 5s
+    #  retries: 5
+    #  start_period: 30s
+    
+    #Prueba
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
-             "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -uroot -p${MYSQL_ROOT_PASSWORD} --silent || exit 1
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 90s
 
 
   # ── Backend Spring Boot ──────────────────────────────────────────────────
@@ -51,16 +51,17 @@ services:
     restart: always
     env_file:
       - .env
+    
+    volumes:
+      - ./firebase/serviceAccountKey.json:/app/firebase/serviceAccountKey.json:ro
+    
     environment:
-      # Spring leerá estas variables para la conexión
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_db:3306/${DB_NAME}?allowPublicKeyRetrieval=true&useSSL=false
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
 
-    # depends_on con condition: service_healthy garantiza que el backend
-    # espera a que MySQL pase el healthcheck antes de intentar conectarse.
-    # Sin "condition", depends_on solo garantiza que el contenedor INICIÓ,
-    # no que la BD esté lista para aceptar conexiones.
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH}
+
     depends_on:
       mysql_db:
         condition: service_healthy

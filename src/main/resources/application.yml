@@ -24,6 +24,11 @@ jwt:
   secret: ${JWT_SECRET:}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+firebase:
+  enabled: ${FIREBASE_ENABLED:false}
+  credentials:
+    path: ${FIREBASE_CREDENTIALS_PATH:}
+
 # ── CORS ─────────────────────────────────────────────────────────────────────
 # Origen adicional permitido para producción.
 # Dejar vacío en desarrollo (localhost ya está incluido por defecto en CorsConfig).

@@ -9,6 +9,7 @@ package com.callsos.backend.infrastructure.config;
  * @author LENOVO
  */
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -38,6 +39,9 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
     
+    @Value("${CORS_ALLOWED_ORIGIN:http://localhost:3000}")
+    private String corsAllowedOrigin;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -45,8 +49,11 @@ public class CorsConfig {
         // Orígenes permitidos — agregar dominio de producción via env var
         config.setAllowedOriginPatterns(List.of(
             "http://localhost:*",    // desarrollo Flutter Web
-            "http://127.0.0.1:*",   // desarrollo alternativo
-            "${CORS_ALLOWED_ORIGIN:http://localhost:3000}"  // producción
+            "http://localhost",      // desarrollo flutter web en puerto 80
+            "http://127.0.0.1:*",   // desarrollo alternativo con puerto
+            "http://127.0.0.1",     // desarrollo alternativo sin puerto (80 por defecto)
+           // "${CORS_ALLOWED_ORIGIN:http://localhost:3000}"  // producción
+            corsAllowedOrigin //producción
         ));
  
         // Métodos HTTP permitidos por la API

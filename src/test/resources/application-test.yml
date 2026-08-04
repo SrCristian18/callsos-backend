@@ -12,9 +12,17 @@ spring:
       mode: always
       schema-locations: classpath:schema-test.sql
       data-locations: classpath:data-test.sql
+
 # ── JWT para tests ────────────────────────────────────────────────────────────
 # Secret de prueba con longitud suficiente (>=32 chars).
 # SOLO para entorno de test — nunca en producción.
 jwt:
   secret: callsos-test-secret-key-only-for-unit-and-integration-tests-not-production
   expiration-ms: 3600000
+
+# ── Firebase deshabilitado en tests ──────────────────────────────────────────
+# FirebaseConfig.firebaseApp() lanza IOException si no encuentra
+# serviceAccountKey.json. En tests no necesitamos notificaciones push.
+# @ConditionalOnProperty en FirebaseConfig lo omite con este flag en false.
+firebase:
+  enabled: false
