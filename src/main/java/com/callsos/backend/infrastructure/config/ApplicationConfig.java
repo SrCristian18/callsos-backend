@@ -174,4 +174,10 @@ public class ApplicationConfig {
             IncidenteRepositoryPort incidenteRepo) {
         return new ConsultarIncidentesPorEstadoService(incidenteRepo);
     }
+
+    @Bean
+    public ConsultarAgentesDisponiblesPorCaiPort consultarAgentesDisponiblesPorCaiPort(
+            AgenteRepositoryPort agenteRepo) {
+        return new ConsultarAgentesDisponiblesPorCaiService(agenteRepo);
+    }
 }
