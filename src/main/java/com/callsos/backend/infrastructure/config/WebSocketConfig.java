@@ -9,7 +9,9 @@ package com.callsos.backend.infrastructure.config;
  * @author LENOVO
  */
 
+import com.callsos.backend.infrastructure.config.security.StompAuthChannelInterceptor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -39,7 +41,21 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer{
-    
+
+    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+
+    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
+        this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+    }
+
+    // Registra el interceptor JWT sobre el canal de mensajes ENTRANTES
+    // (cliente -> servidor). Se ejecuta en cada frame STOMP, pero el
+    // interceptor solo actua sobre CONNECT (ver StompAuthChannelInterceptor).
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(stompAuthChannelInterceptor);
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // Broker simple en memoria para /topic (broadcast) y /queue (unicast)

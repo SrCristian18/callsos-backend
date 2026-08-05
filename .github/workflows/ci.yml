@@ -1,0 +1,37 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución a mvnw
+        run: chmod +x mvnw
+
+      # Los tests usan H2 en memoria (ver src/test/resources/application-test.yml),
+      # por lo que no se necesita levantar MySQL real en este pipeline.
+      - name: Ejecutar tests
+        run: ./mvnw test
+
+      - name: Publicar resultados de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-tests-backend
+          path: target/surefire-reports/
