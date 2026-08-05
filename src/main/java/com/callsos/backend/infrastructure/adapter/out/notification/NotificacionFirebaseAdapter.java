@@ -15,6 +15,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Adaptador de salida: envía notificaciones push vía Firebase Cloud Messaging.
@@ -31,7 +33,10 @@ import com.google.firebase.messaging.Notification;
  */
 
 public class NotificacionFirebaseAdapter implements NotificacionPort{
- 
+
+    private static final Logger log =
+        LoggerFactory.getLogger(NotificacionFirebaseAdapter.class);
+
     private final FirebaseMessaging firebaseMessaging;
  
     public NotificacionFirebaseAdapter(FirebaseMessaging firebaseMessaging) {
@@ -42,8 +47,8 @@ public class NotificacionFirebaseAdapter implements NotificacionPort{
     public void notificarDenunciante(Denunciante denunciante, String mensaje) {
  
         if (!denunciante.tieneTokenFcm()) {
-            System.out.printf(
-                "[FCM] Denunciante %s sin tokenFcm — notificación omitida%n",
+            log.warn(
+                "[FCM] Denunciante {} sin tokenFcm — notificación omitida",
                 denunciante.getNombre());
             return;
         }
@@ -58,14 +63,14 @@ public class NotificacionFirebaseAdapter implements NotificacionPort{
                 .build();
  
             String response = firebaseMessaging.send(fcmMessage);
-            System.out.printf("[FCM] Enviado a %s: %s%n",
+            log.info("[FCM] Enviado a {}: {}",
                 denunciante.getNombre(), response);
- 
+
         } catch (FirebaseMessagingException e) {
             // Log del error pero no relanzar — la notificación es complementaria,
             // no debe romper el flujo principal de negocio
-            System.err.printf("[FCM] Error al notificar a %s: %s%n",
-                denunciante.getNombre(), e.getMessage());
+            log.error("[FCM] Error al notificar a {}: {}",
+                denunciante.getNombre(), e.getMessage(), e);
         }
     }
 }
