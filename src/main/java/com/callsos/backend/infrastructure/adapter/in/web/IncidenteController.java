@@ -9,6 +9,7 @@ import com.callsos.backend.infrastructure.adapter.in.web.dto.CrearIncidenteReque
 import com.callsos.backend.infrastructure.adapter.in.web.dto.IncidenteResponse;
 import com.callsos.backend.infrastructure.adapter.in.web.mapper.IncidenteMapper;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -52,6 +53,10 @@ public class IncidenteController {
     private final MarcarAgenteEnCaminoPort marcarEnCamino;
     private final AtenderIncidentePort atenderIncidente;
     private final EvaluarIncidentePort evaluarIncidente;
+    private final SimularRecorridoAgentePort simularRecorrido;
+
+    @Value("${SIMULACION_HABILITADA:false}")
+    private boolean simulacionHabilitada;
 
     public IncidenteController(
             CrearIncidentePort crearIncidente,
@@ -66,7 +71,8 @@ public class IncidenteController {
             AsignarAgentePort asignarAgente,
             MarcarAgenteEnCaminoPort marcarEnCamino,
             AtenderIncidentePort atenderIncidente,
-            EvaluarIncidentePort evaluarIncidente) {
+            EvaluarIncidentePort evaluarIncidente,
+            SimularRecorridoAgentePort simularRecorrido) {
         this.crearIncidente        = crearIncidente;
         this.cambiarEstado         = cambiarEstado;
         this.consultarEstado       = consultarEstado;
@@ -80,6 +86,7 @@ public class IncidenteController {
         this.marcarEnCamino        = marcarEnCamino;
         this.atenderIncidente      = atenderIncidente;
         this.evaluarIncidente      = evaluarIncidente;
+        this.simularRecorrido      = simularRecorrido;
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
@@ -183,9 +190,42 @@ public class IncidenteController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * PATCH /{id}/en-camino?simular=true
+     *
+     * El parámetro "simular" es SOLO PRUEBAS PILOTO: si se envía en true
+     * Y ADEMÁS la propiedad simulacion.habilitada está en true en este
+     * ambiente, el backend reemplaza el GPS real del agente por un
+     * recorrido simulado (ver SimularRecorridoAgenteService).
+     *
+     * Si simulacion.habilitada=false (valor por defecto / producción),
+     * el parámetro se ignora silenciosamente y el comportamiento es el
+     * normal: se espera la posición real del celular del agente.
+     */
     @PatchMapping("/{id}/en-camino")
-    public ResponseEntity<Void> marcarEnCamino(@PathVariable String id) {
+    public ResponseEntity<Void> marcarEnCamino(
+        @PathVariable String id,
+        @RequestParam(required = false, defaultValue = "false") boolean simular) 
+    {
         marcarEnCamino.ejecutar(id);
+        if(simular && simulacionHabilitada)
+        {
+            simularRecorrido.iniciar(id);
+        }
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * PATCH /{id}/detener-simulacion — SOLO PRUEBAS PILOTO.
+     *
+     * Permite al tester retomar el control manual del "agente" en
+     * cualquier momento del trayecto simulado (ej: si necesita ajustar
+     * algo antes de llegar). No tiene efecto si no hay una simulación
+     * activa para ese incidente.
+     */
+    @PatchMapping("/{id}/detener-simulacion")
+    public ResponseEntity<Void> detenerSimulacion(@PathVariable String id){
+        simularRecorrido.detener(id);
         return ResponseEntity.noContent().build();
     }
 

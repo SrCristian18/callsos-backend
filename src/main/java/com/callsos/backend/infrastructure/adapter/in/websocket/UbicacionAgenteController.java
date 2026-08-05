@@ -10,8 +10,13 @@ package com.callsos.backend.infrastructure.adapter.in.websocket;
  */
 
 import com.callsos.backend.domain.model.UbicacionAgente;
+import com.callsos.backend.domain.port.in.PublicarUbicacionAgentePort;
 import com.callsos.backend.domain.port.out.UbicacionAgenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
+import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -45,18 +50,28 @@ import org.springframework.stereotype.Controller;
 @Controller
 public class UbicacionAgenteController {
     
-     private final UbicacionAgenteRepositoryPort repositorio;
+    private static final Logger log = LoggerFactory.getLogger(UbicacionAgenteController.class);
+    private final PublicarUbicacionAgentePort publicarUbicacion;
+    private final SimulacionEstado simulacionEstado;
+    private final UbicacionAgenteRepositoryPort repositorio;
     private final SimpMessagingTemplate messagingTemplate;
- 
-    public UbicacionAgenteController(UbicacionAgenteRepositoryPort repositorio,
-                                     SimpMessagingTemplate messagingTemplate) {
-        this.repositorio       = repositorio;
+  
+    public UbicacionAgenteController(PublicarUbicacionAgentePort publicarUbicacion, SimulacionEstado simulacionEstado,
+            UbicacionAgenteRepositoryPort repositorio, SimpMessagingTemplate messagingTemplate) {
+        this.publicarUbicacion = publicarUbicacion;
+        this.simulacionEstado = simulacionEstado;
+        this.repositorio = repositorio;
         this.messagingTemplate = messagingTemplate;
     }
- 
+
     /**
      * Recibe la posición GPS del agente y la retransmite al denunciante.
      *
+     * Si el incidente tiene una simulación de recorrido ACTIVA (modo prueba),
+     * esta posición real se descarta: el backend ya está reproduciendo el
+     * trayecto simulado y no queremos que ambas fuentes compitan por el
+     * mismo topic STOMP.
+     * 
      * @param incidenteId  ID del incidente — parte del destino STOMP
      * @param payload      Posición enviada por la app del agente
      */
@@ -65,9 +80,19 @@ public class UbicacionAgenteController {
             @DestinationVariable String incidenteId,
             @Payload UbicacionPayload payload) {
  
+        if (simulacionEstado.estaSimulando(incidenteId))
+        {
+            log.debug("Ubicacion real ignorada - incidente {} está en modo simulacion.",incidenteId);
+            return;
+        }
+        
         // Construir el value object — Ubicacion valida los rangos de lat/lon
-        Ubicacion ubicacion = new Ubicacion(payload.latitud(), payload.longitud());
- 
+        Ubicacion ubicacion = new Ubicacion(payload.latitud(), payload.longitud());        
+        
+        publicarUbicacion.publicar(payload.agenteId(), incidenteId, ubicacion);
+    }
+    /* Descontinuado
+
         UbicacionAgente ua = new UbicacionAgente(
             payload.agenteId(),
             incidenteId,
@@ -87,7 +112,8 @@ public class UbicacionAgenteController {
             )
         );
     }
- 
+    */
+
     /**
      * Endpoint para que el denunciante recupere la última posición
      * conocida al reconectar (ej: al reabrir la app).
