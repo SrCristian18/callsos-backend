@@ -36,6 +36,13 @@ build/
 ### VS Code ###
 .vscode/
 
-# Firebase credentials
-# src/main/resources/serviceAccountKey.json
+#################################################
+# Firebase
+#################################################
+
+firebase/
 **/serviceAccountKey.json
+# Artefactos locales
+error.log
+*.log
+qc
