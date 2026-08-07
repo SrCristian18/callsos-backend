@@ -27,6 +27,8 @@ public interface LoginPort {
      * @param actorId  ID del modelo de negocio (denunciante_id, agente_id…)
      *                 que Flutter necesita para llamar a otros endpoints
      * @param rol      Rol del usuario autenticado
+     * @param nombre   Nombre para mostrar (Gap 4 de deuda_backend.md —
+     *                 puede ser null en cuentas semilla previas al fix)
      */
-    record LoginResultado(String token, String actorId, String rol) {}
+    record LoginResultado(String token, String actorId, String rol, String nombre) {}
 }

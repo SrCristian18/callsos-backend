@@ -66,7 +66,8 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(
             resultado.token(),
             resultado.actorId(),
-            resultado.rol()
+            resultado.rol(),
+            resultado.nombre()
         ));
     }
 
@@ -85,7 +86,7 @@ public class AuthController {
             ));
 
         return ResponseEntity.ok(new AuthResponse(
-            resultado.token(), resultado.actorId(), resultado.rol()));
+            resultado.token(), resultado.actorId(), resultado.rol(), resultado.nombre()));
     }
 
     @PostMapping("/registro/agente")
@@ -103,6 +104,6 @@ public class AuthController {
             ));
 
         return ResponseEntity.ok(new AuthResponse(
-            resultado.token(), resultado.actorId(), resultado.rol()));
+            resultado.token(), resultado.actorId(), resultado.rol(), resultado.nombre()));
     }
 }

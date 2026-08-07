@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.callsos.backend.application.service;
 
 import com.callsos.backend.domain.enums.RolUsuario;
@@ -88,6 +84,7 @@ public class RegistrarDenuncianteService implements RegistrarDenunciantePort {
         usuarioRepository.guardar(
             UUID.randomUUID().toString(),
             documento,                       // username = documento
+            nombreCompleto,
             passwordHash,
             RolUsuario.DENUNCIANTE.name(),
             denuncianteId
@@ -96,6 +93,7 @@ public class RegistrarDenuncianteService implements RegistrarDenunciantePort {
         // Autologueo — mismo JWT que emitiría LoginService, evita que el
         // denunciante tenga que volver a escribir sus credenciales.
         String token = jwtService.generarToken(denuncianteId, RolUsuario.DENUNCIANTE.name());
-        return new LoginPort.LoginResultado(token, denuncianteId, RolUsuario.DENUNCIANTE.name());
+        return new LoginPort.LoginResultado(
+            token, denuncianteId, RolUsuario.DENUNCIANTE.name(), nombreCompleto);
     }
 }

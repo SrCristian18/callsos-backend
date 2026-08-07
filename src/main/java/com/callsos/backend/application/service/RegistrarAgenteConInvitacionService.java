@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.callsos.backend.application.service;
 
 import com.callsos.backend.domain.enums.RolUsuario;
@@ -89,6 +85,7 @@ public class RegistrarAgenteConInvitacionService implements RegistrarAgenteConIn
         usuarioRepository.guardar(
             UUID.randomUUID().toString(),
             datos.username(),
+            datos.nombre(),
             passwordHash,
             RolUsuario.AGENTE.name(),
             agenteId
@@ -98,6 +95,7 @@ public class RegistrarAgenteConInvitacionService implements RegistrarAgenteConIn
         invitacionRepository.actualizar(invitacion);
 
         String token = jwtService.generarToken(agenteId, RolUsuario.AGENTE.name());
-        return new LoginPort.LoginResultado(token, agenteId, RolUsuario.AGENTE.name());
+        return new LoginPort.LoginResultado(
+            token, agenteId, RolUsuario.AGENTE.name(), datos.nombre());
     }
 }
