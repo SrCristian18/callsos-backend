@@ -83,6 +83,8 @@ public class SecurityConfig {
                     .hasAnyRole("COMANDO", "OPERADOR_CAI")
                 .requestMatchers(HttpMethod.GET, "/api/v1/cais/*/agentes/disponibles")
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
+                .requestMatchers(HttpMethod.POST, "/api/v1/invitaciones")
+                    .hasRole("COMANDO")
 
                 .requestMatchers(HttpMethod.POST,  "/api/v1/incidentes")
                     .hasRole("DENUNCIANTE")

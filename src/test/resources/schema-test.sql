@@ -24,11 +24,24 @@ CREATE TABLE IF NOT EXISTS unidades_policiales (
 CREATE TABLE IF NOT EXISTS denunciantes (
     id        VARCHAR(36)  NOT NULL,
     nombre    VARCHAR(100) NOT NULL,
+    documento VARCHAR(20)  UNIQUE,
     origen    VARCHAR(255),
     telefono  VARCHAR(20),
     correo    VARCHAR(100),
     token_fcm VARCHAR(255),
     PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS invitaciones_agente (
+    token               VARCHAR(64)  NOT NULL,
+    unidad_policial_id  VARCHAR(36)  NOT NULL,
+    creado_por          VARCHAR(36)  NOT NULL,
+    fecha_creacion      TIMESTAMP    NOT NULL,
+    fecha_expiracion    TIMESTAMP    NOT NULL,
+    usado               BOOLEAN      NOT NULL DEFAULT FALSE,
+    usado_por           VARCHAR(36),
+    fecha_uso           TIMESTAMP,
+    PRIMARY KEY (token)
 );
 
 CREATE TABLE IF NOT EXISTS agentes (
