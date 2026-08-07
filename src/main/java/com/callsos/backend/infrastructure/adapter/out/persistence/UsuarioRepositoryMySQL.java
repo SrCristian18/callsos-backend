@@ -49,4 +49,25 @@ public class UsuarioRepositoryMySQL implements UsuarioRepositoryPort{
             username
         ).stream().findFirst();
     }
+
+    @Override
+    public boolean existePorUsername(String username) {
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM usuarios WHERE username = ?",
+            Integer.class, username
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
+    public void guardar(String id, String username, String passwordHash,
+                         String rol, String actorId) {
+        jdbc.update(
+            """
+            INSERT INTO usuarios (id, username, password, rol, actor_id, activo)
+            VALUES (?, ?, ?, ?, ?, TRUE)
+            """,
+            id, username, passwordHash, rol, actorId
+        );
+    }
 }

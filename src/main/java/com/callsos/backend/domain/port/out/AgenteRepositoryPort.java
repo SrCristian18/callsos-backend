@@ -30,4 +30,11 @@ public interface AgenteRepositoryPort {
     List<Agente> obtenerDisponiblesPorUnidad(String unidadPolicialId);
  
     void actualizarEstado(Agente agente);
+
+    /**
+     * Persiste un agente nuevo (registro vía invitación).
+     * unidadPolicialId se pasa aparte porque el agregado Agente no lo
+     * mantiene como campo propio — solo existe como columna FK en BD.
+     */
+    void guardar(Agente agente, String unidadPolicialId);
 }

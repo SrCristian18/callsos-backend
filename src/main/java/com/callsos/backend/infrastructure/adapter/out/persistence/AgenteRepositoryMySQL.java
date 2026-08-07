@@ -68,6 +68,26 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             agente.getId()
         );
     }
+
+    @Override
+    public void guardar(Agente agente, String unidadPolicialId) {
+        Ubicacion ubicacion = agente.getUbicacion();
+        jdbc.update(
+            """
+            INSERT INTO agentes
+                (id, nombre, direccion, latitud, longitud, telefono, estado, unidad_policial_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            agente.getId(),
+            agente.getNombre(),
+            agente.getDireccion(),
+            ubicacion != null ? ubicacion.getLatitud()  : null,
+            ubicacion != null ? ubicacion.getLongitud() : null,
+            agente.getTelefono(),
+            agente.getEstado().name(),
+            unidadPolicialId
+        );
+    }
  
     private static class AgenteRowMapper implements RowMapper<Agente> {
         @Override
