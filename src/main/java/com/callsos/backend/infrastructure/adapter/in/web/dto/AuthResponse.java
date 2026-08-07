@@ -21,15 +21,17 @@ public class AuthResponse {
     private final String token;
     private final String actorId;
     private final String rol;
+    private final String nombre;
  
-    public AuthResponse(String token, String actorId, String rol) {
+    public AuthResponse(String token, String actorId, String rol, String nombre) {
         this.token   = token;
         this.actorId = actorId;
         this.rol     = rol;
+        this.nombre  = nombre;
     }
  
     public String getToken()   { return token; }
     public String getActorId() { return actorId; }
     public String getRol()     { return rol; }
+    public String getNombre()  { return nombre; }
 }
- 

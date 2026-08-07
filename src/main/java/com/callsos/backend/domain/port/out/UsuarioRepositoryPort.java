@@ -29,7 +29,7 @@ public interface UsuarioRepositoryPort {
      * Persiste un usuario nuevo (registro).
      * El password ya debe venir hasheado con BCrypt — este puerto no hashea.
      */
-    void guardar(String id, String username, String passwordHash,
+    void guardar(String id, String username, String nombre, String passwordHash,
                  String rol, String actorId);
  
     /**
@@ -37,6 +37,9 @@ public interface UsuarioRepositoryPort {
      *
      * @param id        ID del registro en tabla usuarios
      * @param username  Nombre de usuario para login
+     * @param nombre    Nombre para mostrar (Gap 4 — nullable en usuarios
+     *                  semilla previos a este fix; UI hace fallback a
+     *                  placeholder si viene null)
      * @param password  Hash BCrypt almacenado en BD
      * @param rol       Rol del sistema (DENUNCIANTE, AGENTE, etc.)
      * @param actorId   ID del modelo de negocio asociado
@@ -45,6 +48,7 @@ public interface UsuarioRepositoryPort {
     record UsuarioCredencial(
         String id,
         String username,
+        String nombre,
         String password,
         String rol,
         String actorId
