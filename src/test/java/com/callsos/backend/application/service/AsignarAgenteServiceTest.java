@@ -53,20 +53,66 @@ public class AsignarAgenteServiceTest {
     }
  
     @Test
-    @DisplayName("Asigna agente disponible y persiste asignacion, incidente y estado agente")
+    @DisplayName("Asigna agente disponible y persiste asignacion e incidente")
     void asignaAgenteYPersisteTodo() {
         Incidente incidente = incidenteConCAIyDenuncia();
         Agente agente = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
- 
+
         when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
         when(agenteRepo.obtenerDisponiblesPorUnidad("cai-001")).thenReturn(List.of(agente));
- 
+        when(agenteRepo.intentarReservar("ag-001")).thenReturn(true);
+
         service.ejecutar("i-001");
- 
-        // Verifica que los 3 objetos afectados se persisten
+
+        // FIX (condición de carrera): ya no se llama actualizarEstado() al
+        // final — el estado del agente se persiste atómicamente dentro de
+        // intentarReservar(), verificado abajo.
+        verify(agenteRepo, times(1)).intentarReservar("ag-001");
         verify(asignacionRepo, times(1)).guardar(any());
         verify(incidenteRepo, times(1)).guardar(incidente);
-        verify(agenteRepo, times(1)).actualizarEstado(agente);
+        verify(agenteRepo, never()).actualizarEstado(any());
+    }
+
+    @Test
+    @DisplayName("Condición de carrera: si el primer candidato ya fue reservado, "
+        + "reintenta con el siguiente en la lista")
+    void reintentaConSiguienteCandidatoSiElPrimeroFueTomado() {
+        Incidente incidente = incidenteConCAIyDenuncia();
+        Agente primerCandidato  = new Agente("ag-001", "Pedro",  "Dir", ubicacion, "300");
+        Agente segundoCandidato = new Agente("ag-002", "María",  "Dir", ubicacion, "301");
+
+        when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(agenteRepo.obtenerDisponiblesPorUnidad("cai-001"))
+            .thenReturn(List.of(primerCandidato, segundoCandidato));
+
+        // Simula que otra asignación concurrente ya tomó a "ag-001" justo
+        // entre el SELECT (obtenerDisponiblesPorUnidad) y este punto.
+        when(agenteRepo.intentarReservar("ag-001")).thenReturn(false);
+        when(agenteRepo.intentarReservar("ag-002")).thenReturn(true);
+
+        service.ejecutar("i-001");
+
+        verify(agenteRepo).intentarReservar("ag-001");
+        verify(agenteRepo).intentarReservar("ag-002");
+        verify(asignacionRepo, times(1)).guardar(any());
+    }
+
+    @Test
+    @DisplayName("Condición de carrera: si TODOS los candidatos ya fueron "
+        + "reservados por otra asignación concurrente, lanza excepción sin persistir nada")
+    void lanzaSiTodosLosCandidatosFueronTomadosPorConcurrencia() {
+        Incidente incidente = incidenteConCAIyDenuncia();
+        Agente candidato = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
+
+        when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(agenteRepo.obtenerDisponiblesPorUnidad("cai-001")).thenReturn(List.of(candidato));
+        when(agenteRepo.intentarReservar("ag-001")).thenReturn(false);
+
+        assertThrows(IllegalStateException.class,
+            () -> service.ejecutar("i-001"));
+
+        verify(asignacionRepo, never()).guardar(any());
+        verify(incidenteRepo, never()).guardar(any());
     }
  
     @Test
@@ -115,13 +161,17 @@ public class AsignarAgenteServiceTest {
         UnidadPolicial cai = new UnidadPolicial("cai-001", "CAI", "Dir", ubicacion, "600");
         incidente.derivarACAI(cai);
         // No se llama a setDenuncia
- 
-        Agente agente = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
+
         when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
-        when(agenteRepo.obtenerDisponiblesPorUnidad("cai-001")).thenReturn(List.of(agente));
- 
+
         assertThrows(IllegalStateException.class,
             () -> service.ejecutar("i-001"));
+
+        // FIX (condición de carrera): el chequeo de Denuncia ahora ocurre
+        // ANTES de tocar agenteRepository — precisamente para no reservar
+        // (y dejar atascado en OCUPADO) un agente cuando el incidente de
+        // todas formas iba a fallar por esta otra razón.
+        verifyNoInteractions(agenteRepo, asignacionRepo);
     }
  
     // ── Helper ─────────────────────────────────────────────────────────────

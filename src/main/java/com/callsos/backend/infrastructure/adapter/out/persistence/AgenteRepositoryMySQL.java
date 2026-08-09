@@ -70,6 +70,21 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     }
 
     @Override
+    public boolean intentarReservar(String agenteId) {
+        // UPDATE condicional: atómico por naturaleza del motor de BD.
+        // Si dos transacciones concurrentes lo ejecutan para el mismo
+        // agenteId, el motor serializa las dos escrituras sobre esa fila
+        // — la segunda en aplicar ve estado ya 'OCUPADO' en su condición
+        // WHERE y actualiza 0 filas, sin importar si su propia lectura
+        // previa (obtenerDisponiblesPorUnidad) lo había visto DISPONIBLE.
+        int filas = jdbc.update(
+            "UPDATE agentes SET estado = 'OCUPADO' WHERE id = ? AND estado = 'DISPONIBLE'",
+            agenteId
+        );
+        return filas == 1;
+    }
+
+    @Override
     public void guardar(Agente agente, String unidadPolicialId) {
         Ubicacion ubicacion = agente.getUbicacion();
         jdbc.update(
