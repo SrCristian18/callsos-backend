@@ -31,6 +31,20 @@ import java.util.UUID;
  * FIX 2 (AsignacionRepositoryPort): la Asignacion ahora se persiste
  *   en BD a través del puerto de salida correspondiente.
  *   Antes se creaba en memoria pero nunca se guardaba en la tabla asignaciones.
+ *
+ * FIX 3 (Épica 4 — condición de carrera): antes, este método hacía un
+ *   SELECT (obtenerDisponiblesPorUnidad) y, varias líneas después, un
+ *   UPDATE ciego (agenteRepository.actualizarEstado) sin ninguna
+ *   condición ni lock entre medio. Dos operadores de CAI asignando al
+ *   mismo tiempo podían leer el mismo agente "disponible" antes de que
+ *   cualquiera de los dos UPDATE aplicara, resultando en el mismo agente
+ *   asignado a dos incidentes distintos simultáneamente.
+ *
+ *   Ahora cada candidato se "reclama" con un UPDATE condicional atómico
+ *   (agenteRepository.intentarReservar) antes de comprometerse a usarlo.
+ *   Si la reserva falla (alguien más lo tomó primero), se prueba con el
+ *   siguiente candidato de la lista en vez de fallar de inmediato — solo
+ *   se lanza IllegalStateException si NINGÚN candidato pudo reservarse.
  */
 public class AsignarAgenteService implements AsignarAgentePort {
  
@@ -59,32 +73,63 @@ public class AsignarAgenteService implements AsignarAgentePort {
             throw new IllegalStateException(
                 "El incidente no tiene CAI asignado. " +
                 "Ejecute /derivar antes de /asignar.");
- 
-        List<Agente> disponibles = agenteRepository
-            .obtenerDisponiblesPorUnidad(unidad.getId());
- 
-        Agente agente = disponibles.stream()
-            .findFirst()
-            .orElseThrow(() -> new IllegalStateException(
-                "No hay agentes disponibles en la unidad: " + unidad.getNombre()));
- 
+
+        // Se valida ANTES de reservar cualquier agente a propósito: si esto
+        // se revisara después de intentarReservar() (como en una versión
+        // anterior de este método), un incidente sin Denuncia dejaría al
+        // agente marcado OCUPADO en BD de forma permanente, sin ninguna
+        // Asignacion real creada para liberarlo después — un "agente
+        // atascado" sin forma de recuperarse solo.
         Denuncia denuncia = incidente.getDenuncia();
         if (denuncia == null)
             throw new IllegalStateException(
                 "El incidente no tiene una Denuncia vinculada.");
+
+        List<Agente> disponibles = agenteRepository
+            .obtenerDisponiblesPorUnidad(unidad.getId());
+
+        if (disponibles.isEmpty())
+            throw new IllegalStateException(
+                "No hay agentes disponibles en la unidad: " + unidad.getNombre());
+
+        // Recorre los candidatos intentando reservar cada uno de forma
+        // atómica hasta que uno tenga éxito. Si otra asignación
+        // concurrente ya se quedó con el primer candidato entre el
+        // SELECT de arriba y este punto, ese intentarReservar() devuelve
+        // false y se prueba con el siguiente — sin volver a golpear la BD
+        // con un nuevo SELECT.
+        Agente agenteReservado = null;
+        for (Agente candidato : disponibles) {
+            if (agenteRepository.intentarReservar(candidato.getId())) {
+                agenteReservado = candidato;
+                break;
+            }
+        }
+
+        if (agenteReservado == null)
+            throw new IllegalStateException(
+                "No hay agentes disponibles en la unidad: " + unidad.getNombre() +
+                " (todos los candidatos fueron tomados por otra asignación concurrente).");
  
+        // new Asignacion(...) llama agenteReservado.asignar() en memoria:
+        // agenteReservado.estaDisponible() todavía es true en el objeto
+        // Java (viene del SELECT de arriba, antes de la reserva), así que
+        // el invariante del constructor pasa sin problema, y el estado en
+        // memoria queda consistente con lo que ya escribimos en BD vía
+        // intentarReservar().
         Asignacion asignacion = new Asignacion(
             UUID.randomUUID().toString(),
-            agente,
+            agenteReservado,
             denuncia
         );
  
         incidente.agregarAsignacion(asignacion);
         incidente.marcarAgenteAsignado();
  
-        // Persistir los tres objetos afectados
-        asignacionRepository.guardar(asignacion);   // FIX: antes no se guardaba
+        // Persistir asignación e incidente. El estado del agente YA se
+        // persistió atómicamente en intentarReservar() — no hace falta
+        // (ni conviene) un actualizarEstado() adicional acá.
+        asignacionRepository.guardar(asignacion);
         incidenteRepository.guardar(incidente);
-        agenteRepository.actualizarEstado(agente);
     }
 }
