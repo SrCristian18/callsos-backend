@@ -5,6 +5,8 @@
 package com.callsos.backend.infrastructure.persistence;
 
 import com.callsos.backend.infrastructure.adapter.out.persistence.AgenteRepositoryMySQL;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.util.concurrent.CountDownLatch;
@@ -40,17 +44,53 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @JdbcTest
 @Import(AgenteRepositoryMySQL.class)
 @ActiveProfiles("test")
+// @JdbcTest envuelve cada test en una transacción con rollback automático
+// por defecto. La desactivamos aquí a propósito: este test usa hilos con
+// conexiones JDBC independientes que necesitan VER commits reales entre sí
+// (y el @BeforeEach necesita comitear el agente dedicado antes de que los
+// hilos lo lean). Con la transacción de Spring activa, el INSERT del
+// @BeforeEach quedaría sin comitear y sería invisible para esas conexiones.
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DisplayName("AgenteRepositoryMySQL — condición de carrera en intentarReservar (Épica 4)")
 class AgenteRepositoryConcurrenciaTest {
 
     @Autowired
     private DataSource dataSource;
 
+    // IDs propios de esta clase — NUNCA "ag-test-001". Ese es el agente
+    // semilla compartido en data-test.sql del que dependen otras clases de
+    // test (p. ej. AgenteRepositoryMySQLTest). Este test hace commits reales
+    // fuera de la transacción de Spring (necesario para simular concurrencia
+    // real con conexiones separadas), así que si tocara el agente
+    // compartido lo dejaría permanentemente OCUPADO y rompería a las demás
+    // clases que corren en el mismo ciclo de `mvn test`.
+    private static final String AGENTE_CONCURRENCIA_ID = "ag-concurrencia-001";
+    private static final String UNIDAD_TEST_ID = "cai-test-001"; // ya existe en data-test.sql
+
+    @BeforeEach
+    void crearAgenteDedicado() {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update(
+            """
+            INSERT INTO agentes
+                (id, nombre, direccion, latitud, longitud, telefono, estado, unidad_policial_id)
+            VALUES (?, 'Agente Concurrencia Test', 'N/A', 10.41, -75.54, '3000000000', 'DISPONIBLE', ?)
+            """,
+            AGENTE_CONCURRENCIA_ID, UNIDAD_TEST_ID
+        );
+    }
+
+    @AfterEach
+    void limpiarAgenteDedicado() {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("DELETE FROM agentes WHERE id = ?", AGENTE_CONCURRENCIA_ID);
+    }
+
     @Test
     @DisplayName("Solo UN hilo gana la reserva cuando varios compiten por el mismo agente")
     void soloUnoGanaLaReservaBajoConcurrenciaReal() throws InterruptedException {
         final int hilos = 10;
-        final String agenteId = "ag-test-001"; // seed data-test.sql: DISPONIBLE, cai-test-001
+        final String agenteId = AGENTE_CONCURRENCIA_ID;
 
         ExecutorService executor = Executors.newFixedThreadPool(hilos);
         CountDownLatch listos = new CountDownLatch(hilos);
@@ -105,8 +145,8 @@ class AgenteRepositoryConcurrenciaTest {
     void reservarAgenteYaOcupadoDevuelveFalse() {
         AgenteRepositoryMySQL repository = new AgenteRepositoryMySQL(dataSource);
 
-        boolean primeraReserva = repository.intentarReservar("ag-test-001");
-        boolean segundaReserva = repository.intentarReservar("ag-test-001");
+        boolean primeraReserva = repository.intentarReservar(AGENTE_CONCURRENCIA_ID);
+        boolean segundaReserva = repository.intentarReservar(AGENTE_CONCURRENCIA_ID);
 
         assertTrue(primeraReserva, "La primera reserva sobre un agente DISPONIBLE debe ganar");
         assertTrue(!segundaReserva,
