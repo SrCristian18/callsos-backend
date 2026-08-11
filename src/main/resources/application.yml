@@ -34,3 +34,12 @@ firebase:
 # Dejar vacío en desarrollo (localhost ya está incluido por defecto en CorsConfig).
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+
+#Simular recorrido de agente (solo para las pruebas piloto)
+simulacion:
+  habilitada: ${SIMULACION_HABILITADA:false}
+  velocidad-kmh: ${SIMULACION_VELOCIDAD:35}
+  intervalo-ms: ${SIMULACION_INTERVALO_MS:2000}
+  osrm:
+    url: ${SIMULACION_OSRM_URL:https://router.project-osrm.org}
+    timeout-ms: ${SIMULACION_OSRM_TIMEOUT_MS:4000}

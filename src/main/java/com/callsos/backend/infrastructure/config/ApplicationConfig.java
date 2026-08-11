@@ -12,10 +12,15 @@ package com.callsos.backend.infrastructure.config;
 import com.callsos.backend.application.service.*;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.port.out.*;
+import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
 import com.callsos.backend.infrastructure.config.security.JwtService;
-import com.callsos.backend.domain.port.in.RegistrarTokenFcmPort;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
  
@@ -202,6 +207,45 @@ public class ApplicationConfig {
         return new ConsultarIncidentesPorEstadoService(incidenteRepo);
     }
 
+    //Tracking GPS - Simulacion de recorrido (SOLO para pruebas piloto)
+    @Bean
+    public PublicarUbicacionAgentePort publicarUbicacionAgentePort(
+        UbicacionAgenteRepositoryPort ubicacionAgenteRepo,
+        SimpMessagingTemplate messagingTemplate){
+            return new PublicarUbicacionAgenteService(ubicacionAgenteRepo, messagingTemplate);
+        }
+
+    /**
+     * Scheduler dedicado para las tareas periódicas de simulación de
+     * recorrido. Pool pequeño: cada piloto solo corre unas pocas
+     * simulaciones concurrentes a la vez.
+     */
+
+    @Bean
+    public TaskScheduler taskScheduler(){
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(4);
+        scheduler.setThreadNamePrefix("sim-recorrido-");
+        scheduler.initialize();
+        return scheduler;
+    }
+
+    @Bean
+    public SimularRecorridoAgentePort simularRecorridoAgentePort(
+        IncidenteRepositoryPort incidenteRepo,
+        AsignacionRepositoryPort asignacionrepo,
+        RutaPort rutarPort,
+        PublicarUbicacionAgentePort publicarUbicacion,
+        SimulacionEstado simulacionEstado,
+        TaskScheduler taskScheduler,
+        @Value("${SIMULACION_VELOCIDAD:35}") double velocidadKmh,
+        @Value("${SIMULACION_INTERVALO_MS:2000}") long intervaloMs)
+        {
+            return new SimularRecorridoAgenteService(
+                incidenteRepo, asignacionrepo, rutarPort,
+                publicarUbicacion, simulacionEstado, taskScheduler,
+                velocidadKmh, intervaloMs);
+        }
     @Bean
     public ConsultarAgentesDisponiblesPorCaiPort consultarAgentesDisponiblesPorCaiPort(
             AgenteRepositoryPort agenteRepo) {
