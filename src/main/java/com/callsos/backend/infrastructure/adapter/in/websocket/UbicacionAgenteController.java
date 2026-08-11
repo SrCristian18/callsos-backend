@@ -85,6 +85,12 @@ public class UbicacionAgenteController {
             @Payload UbicacionPayload payload,
             Principal principal) {
 
+        if (simulacionEstado.estaSimulando(incidenteId))
+        {
+            log.debug("Ubicacion real ignorada - incidente {} está en modo simulacion.",incidenteId);
+            return;
+        }
+
         // Spring inyecta aca el Principal que StompAuthChannelInterceptor
         // seteo en el frame CONNECT (accessor.setUser(...)). No puede ser
         // null si el interceptor esta registrado, pero se valida por
