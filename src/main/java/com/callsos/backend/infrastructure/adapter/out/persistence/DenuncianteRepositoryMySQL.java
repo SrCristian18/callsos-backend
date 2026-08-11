@@ -32,7 +32,7 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
     @Override
     public Optional<Denunciante> buscarPorId(String id) {
         String sql = """
-            SELECT id, nombre, origen, telefono, correo, token_fcm
+            SELECT id, nombre, documento, origen, telefono, correo, token_fcm
             FROM denunciantes
             WHERE id = ?
             """;
@@ -52,6 +52,32 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
             tokenFcm, denuncianteId
         );
     }
+
+    @Override
+    public void guardar(Denunciante denunciante) {
+        jdbc.update(
+            """
+            INSERT INTO denunciantes (id, nombre, documento, origen, telefono, correo, token_fcm)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            denunciante.getId(),
+            denunciante.getNombre(),
+            denunciante.getDocumento(),
+            denunciante.getOrigen(),
+            denunciante.getTelefono(),
+            denunciante.getCorreo(),
+            denunciante.getTokenFcm()
+        );
+    }
+
+    @Override
+    public boolean existePorDocumento(String documento) {
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM denunciantes WHERE documento = ?",
+            Integer.class, documento
+        );
+        return count != null && count > 0;
+    }
     
      private static class DenuncianteRowMapper implements RowMapper<Denunciante> {
         @Override
@@ -59,6 +85,7 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
             return new Denunciante(
                 rs.getString("id"),
                 rs.getString("nombre"),
+                rs.getString("documento"),
                 rs.getString("origen"),
                 rs.getString("telefono"),
                 rs.getString("correo"),

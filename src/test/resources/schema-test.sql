@@ -24,11 +24,24 @@ CREATE TABLE IF NOT EXISTS unidades_policiales (
 CREATE TABLE IF NOT EXISTS denunciantes (
     id        VARCHAR(36)  NOT NULL,
     nombre    VARCHAR(100) NOT NULL,
+    documento VARCHAR(20)  UNIQUE,
     origen    VARCHAR(255),
     telefono  VARCHAR(20),
     correo    VARCHAR(100),
     token_fcm VARCHAR(255),
     PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS invitaciones_agente (
+    token               VARCHAR(64)  NOT NULL,
+    unidad_policial_id  VARCHAR(36)  NOT NULL,
+    creado_por          VARCHAR(36)  NOT NULL,
+    fecha_creacion      TIMESTAMP    NOT NULL,
+    fecha_expiracion    TIMESTAMP    NOT NULL,
+    usado               BOOLEAN      NOT NULL DEFAULT FALSE,
+    usado_por           VARCHAR(36),
+    fecha_uso           TIMESTAMP,
+    PRIMARY KEY (token)
 );
 
 CREATE TABLE IF NOT EXISTS agentes (
@@ -99,9 +112,32 @@ CREATE TABLE IF NOT EXISTS denuncias (
     PRIMARY KEY (id)
 );
 
+-- Agregadas para Épica 4: faltaban en el schema de test aunque ya
+-- existían en producción (database/01_schema.sql). Sin estas tablas,
+-- ReporteHallazgosRepositoryMySQLTest y ReporteAdministrativoRepositoryMySQLTest
+-- fallarían con "Table not found" al arrancar el contexto @JdbcTest.
+CREATE TABLE IF NOT EXISTS reportes_hallazgos (
+    id           VARCHAR(36) NOT NULL,
+    fecha        TIMESTAMP   NOT NULL,
+    descripcion  CLOB,
+    incidente_id VARCHAR(36) NOT NULL,
+    agente_id    VARCHAR(36) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS reportes_administrativos (
+    id           VARCHAR(36) NOT NULL,
+    fecha        TIMESTAMP   NOT NULL,
+    resumen      CLOB,
+    incidente_id VARCHAR(36) NOT NULL,
+    autoridad_id VARCHAR(36) NOT NULL,
+    PRIMARY KEY (id)
+);
+
 CREATE TABLE IF NOT EXISTS usuarios (
     id        VARCHAR(36)  NOT NULL,
     username  VARCHAR(100) NOT NULL UNIQUE,
+    nombre    VARCHAR(150),
     password  VARCHAR(255) NOT NULL,
     rol       VARCHAR(20)  NOT NULL,
     actor_id  VARCHAR(36)  NOT NULL,

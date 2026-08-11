@@ -32,20 +32,34 @@ public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
  
     @Override
     public void guardar(Asignacion asignacion) {
-        String sql = """
-            INSERT INTO asignaciones
-              (id, fecha_asignacion, estado, agente_id, incidente_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              estado = VALUES(estado)
-            """;
-        jdbc.update(sql,
-            asignacion.getId(),
-            asignacion.getFechaAsignacion(),
+        // FIX (Épica 4): "ON DUPLICATE KEY UPDATE" es sintaxis exclusiva de
+        // MySQL — H2 (usado en @JdbcTest) no la puede parsear, fallaba con
+        // BadSqlGrammarException incluso en el primer INSERT. Se reemplaza
+        // por UPDATE-si-existe / INSERT-si-no (mismo patrón que
+        // IncidenteRepositoryMySQL.guardar()), SQL portátil. No afecta a
+        // intentarReservar(), que es el método realmente sensible a
+        // condiciones de carrera y ya usa un UPDATE condicional atómico
+        // aparte — esto es solo el guardado administrativo de la Asignacion.
+        int filas = jdbc.update(
+            "UPDATE asignaciones SET estado = ? WHERE id = ?",
             asignacion.getEstado().name(),
-            asignacion.getAgente().getId(),
-            asignacion.getIncidente().getId()
+            asignacion.getId()
         );
+
+        if (filas == 0) {
+            jdbc.update(
+                """
+                INSERT INTO asignaciones
+                  (id, fecha_asignacion, estado, agente_id, incidente_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                asignacion.getId(),
+                asignacion.getFechaAsignacion(),
+                asignacion.getEstado().name(),
+                asignacion.getAgente().getId(),
+                asignacion.getIncidente().getId()
+            );
+        }
     }
     
     /**

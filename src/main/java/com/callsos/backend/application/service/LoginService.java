@@ -64,6 +64,6 @@ public class LoginService implements LoginPort{
         // userId en el JWT = actorId (ID del denunciante/agente/CAI)
         String token = jwtService.generarToken(credencial.actorId(), credencial.rol());
  
-        return new LoginResultado(token, credencial.actorId(), credencial.rol());
+        return new LoginResultado(token, credencial.actorId(), credencial.rol(), credencial.nombre());
     }
 }

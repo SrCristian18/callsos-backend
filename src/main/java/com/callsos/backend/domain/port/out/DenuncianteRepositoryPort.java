@@ -33,4 +33,10 @@ public interface DenuncianteRepositoryPort {
      * @param tokenFcm       Nuevo token emitido por Firebase en el dispositivo
      */
     void actualizarTokenFcm(String denuncianteId, String tokenFcm);
+
+    /** Persiste un denunciante nuevo (registro). */
+    void guardar(Denunciante denunciante);
+
+    /** true si ya existe un denunciante con ese documento — evita duplicados. */
+    boolean existePorDocumento(String documento);
 }

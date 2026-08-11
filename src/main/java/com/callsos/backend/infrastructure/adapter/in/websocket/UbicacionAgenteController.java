@@ -21,7 +21,11 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
+
+import java.security.Principal;
 
 /**
  * Adaptador de entrada WebSocket: recibe posiciones GPS del agente
@@ -78,14 +82,38 @@ public class UbicacionAgenteController {
     @MessageMapping("/ubicacion/{incidenteId}")
     public void recibirUbicacion(
             @DestinationVariable String incidenteId,
-            @Payload UbicacionPayload payload) {
- 
-        if (simulacionEstado.estaSimulando(incidenteId))
-        {
-            log.debug("Ubicacion real ignorada - incidente {} está en modo simulacion.",incidenteId);
-            return;
+            @Payload UbicacionPayload payload,
+            Principal principal) {
+
+        // Spring inyecta aca el Principal que StompAuthChannelInterceptor
+        // seteo en el frame CONNECT (accessor.setUser(...)). No puede ser
+        // null si el interceptor esta registrado, pero se valida por
+        // defensividad ante cambios futuros de configuracion.
+        if (principal == null) {
+            throw new IllegalStateException(
+                "No hay Principal autenticado en la sesion STOMP");
         }
-        
+
+        // El agenteId viene del TOKEN, no del payload que manda el cliente.
+        // Antes: se confiaba en payload.agenteId(), lo que permitia que
+        // cualquier cliente conectado enviara ubicaciones a nombre de
+        // OTRO agente con solo cambiar ese campo en el JSON.
+        String agenteIdAutenticado = principal.getName();
+
+        // Solo un usuario con rol AGENTE puede publicar su ubicacion.
+        // (SecurityConfig no cubre destinos STOMP como /app/**, por eso
+        // esta verificacion de rol se hace aca explicitamente).
+        if (principal instanceof Authentication auth) {
+            boolean esAgente = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_AGENTE"::equals);
+
+            if (!esAgente) {
+                throw new IllegalStateException(
+                    "Solo un AGENTE puede enviar su ubicacion. Rol actual no autorizado.");
+            }
+        }
+
         // Construir el value object — Ubicacion valida los rangos de lat/lon
         Ubicacion ubicacion = new Ubicacion(payload.latitud(), payload.longitud());        
         
@@ -94,7 +122,7 @@ public class UbicacionAgenteController {
     /* Descontinuado
 
         UbicacionAgente ua = new UbicacionAgente(
-            payload.agenteId(),
+            agenteIdAutenticado,
             incidenteId,
             ubicacion
         );
@@ -136,7 +164,16 @@ public class UbicacionAgenteController {
  
     // ── Records Java 21 como DTOs de WebSocket ─────────────────────────────
  
-    /** Payload recibido del agente. */
+    /**
+     * Payload recibido del agente.
+     *
+     * agenteId se mantiene en el DTO por compatibilidad con el payload
+     * que ya envia el cliente Flutter, pero NO se usa como fuente de
+     * verdad — ver recibirUbicacion(): el agenteId real sale del JWT
+     * (Principal), no de este campo. Queda pendiente coordinar con el
+     * frontend para eventualmente retirarlo del payload y limpiar este
+     * campo tambien.
+     */
     public record UbicacionPayload(
         String agenteId,
         double latitud,

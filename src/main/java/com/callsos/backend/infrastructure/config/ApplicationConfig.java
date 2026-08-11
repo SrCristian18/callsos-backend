@@ -59,6 +59,33 @@ public class ApplicationConfig {
             PasswordEncoder passwordEncoder) {
         return new LoginService(usuarioRepo, jwtService, passwordEncoder);
     }
+
+    @Bean
+    public RegistrarDenunciantePort registrarDenunciantePort(
+            DenuncianteRepositoryPort denuncianteRepo,
+            UsuarioRepositoryPort usuarioRepo,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
+        return new RegistrarDenuncianteService(
+            denuncianteRepo, usuarioRepo, passwordEncoder, jwtService);
+    }
+
+    @Bean
+    public RegistrarAgenteConInvitacionPort registrarAgenteConInvitacionPort(
+            InvitacionAgenteRepositoryPort invitacionRepo,
+            AgenteRepositoryPort agenteRepo,
+            UsuarioRepositoryPort usuarioRepo,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
+        return new RegistrarAgenteConInvitacionService(
+            invitacionRepo, agenteRepo, usuarioRepo, passwordEncoder, jwtService);
+    }
+
+    @Bean
+    public GenerarInvitacionAgentePort generarInvitacionAgentePort(
+            InvitacionAgenteRepositoryPort invitacionRepo) {
+        return new GenerarInvitacionAgenteService(invitacionRepo);
+    }
  
     // ── Incidente ──────────────────────────────────────────────────────────
  
@@ -219,4 +246,9 @@ public class ApplicationConfig {
                 publicarUbicacion, simulacionEstado, taskScheduler,
                 velocidadKmh, intervaloMs);
         }
+    @Bean
+    public ConsultarAgentesDisponiblesPorCaiPort consultarAgentesDisponiblesPorCaiPort(
+            AgenteRepositoryPort agenteRepo) {
+        return new ConsultarAgentesDisponiblesPorCaiService(agenteRepo);
+    }
 }

@@ -52,7 +52,7 @@ public class LoginServiceTest {
     @DisplayName("Login exitoso retorna token, actorId y rol")
     void loginExitoso() {
         UsuarioCredencial credencial = new UsuarioCredencial(
-            "usr-001", "juan.test", "$2a$10$hash", "DENUNCIANTE", "den-001");
+            "usr-001", "juan.test", "Juan Pérez", "$2a$10$hash", "DENUNCIANTE", "den-001");
  
         when(usuarioRepo.buscarPorUsername("juan.test"))
             .thenReturn(Optional.of(credencial));
@@ -66,6 +66,7 @@ public class LoginServiceTest {
         assertEquals("eyJhbGciOiJIUzI1NiJ9.token", resultado.token());
         assertEquals("den-001", resultado.actorId());
         assertEquals("DENUNCIANTE", resultado.rol());
+        assertEquals("Juan Pérez", resultado.nombre());
  
         verify(jwtService).generarToken("den-001", "DENUNCIANTE");
     }
@@ -88,7 +89,7 @@ public class LoginServiceTest {
     @DisplayName("Contraseña incorrecta lanza excepcion con el mismo mensaje generico")
     void contrasenaIncorrecta() {
         UsuarioCredencial credencial = new UsuarioCredencial(
-            "usr-001", "juan.test", "$2a$10$hash", "DENUNCIANTE", "den-001");
+            "usr-001", "juan.test", "Juan Pérez", "$2a$10$hash", "DENUNCIANTE", "den-001");
  
         when(usuarioRepo.buscarPorUsername("juan.test"))
             .thenReturn(Optional.of(credencial));
@@ -108,7 +109,7 @@ public class LoginServiceTest {
     @DisplayName("El JWT usa actorId como subject, no el ID interno de usuarios")
     void jwtUsaActorIdNoUsuarioId() {
         UsuarioCredencial credencial = new UsuarioCredencial(
-            "usr-interno-999", "juan.test", "$2a$10$hash", "AGENTE", "ag-real-001");
+            "usr-interno-999", "juan.test", "Juan Pérez", "$2a$10$hash", "AGENTE", "ag-real-001");
  
         when(usuarioRepo.buscarPorUsername("juan.test"))
             .thenReturn(Optional.of(credencial));

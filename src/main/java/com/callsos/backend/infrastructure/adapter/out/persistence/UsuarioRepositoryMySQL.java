@@ -35,18 +35,40 @@ public class UsuarioRepositoryMySQL implements UsuarioRepositoryPort{
     public Optional<UsuarioCredencial> buscarPorUsername(String username) {
         return jdbc.query(
             """
-            SELECT id, username, password, rol, actor_id
+            SELECT id, username, nombre, password, rol, actor_id
             FROM usuarios
             WHERE username = ? AND activo = TRUE
             """,
             (rs, i) -> new UsuarioCredencial(
                 rs.getString("id"),
                 rs.getString("username"),
+                rs.getString("nombre"),
                 rs.getString("password"),
                 rs.getString("rol"),
                 rs.getString("actor_id")
             ),
             username
         ).stream().findFirst();
+    }
+
+    @Override
+    public boolean existePorUsername(String username) {
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM usuarios WHERE username = ?",
+            Integer.class, username
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
+    public void guardar(String id, String username, String nombre, String passwordHash,
+                         String rol, String actorId) {
+        jdbc.update(
+            """
+            INSERT INTO usuarios (id, username, nombre, password, rol, actor_id, activo)
+            VALUES (?, ?, ?, ?, ?, ?, TRUE)
+            """,
+            id, username, nombre, passwordHash, rol, actorId
+        );
     }
 }
