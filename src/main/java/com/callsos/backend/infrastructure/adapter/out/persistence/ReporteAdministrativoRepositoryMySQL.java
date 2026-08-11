@@ -28,19 +28,30 @@ public class ReporteAdministrativoRepositoryMySQL implements ReporteAdministrati
  
     @Override
     public void guardar(ReporteAdministrativo reporte) {
-        String sql = """
-            INSERT INTO reportes_administrativos
-              (id, fecha, resumen, incidente_id, autoridad_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE resumen = VALUES(resumen)
-            """;
-        jdbc.update(sql,
-            reporte.getId(),
-            reporte.getFecha(),
+        // FIX (Épica 4): "ON DUPLICATE KEY UPDATE" (MySQL-only) rompía el
+        // parser de H2 en @JdbcTest. Reemplazado por UPDATE-si-existe /
+        // INSERT-si-no — SQL portátil, mismo patrón que
+        // IncidenteRepositoryMySQL.guardar().
+        int filas = jdbc.update(
+            "UPDATE reportes_administrativos SET resumen = ? WHERE id = ?",
             reporte.getResumen(),
-            reporte.getIncidente().getId(),
-            reporte.getAutoridad().getId()
+            reporte.getId()
         );
+
+        if (filas == 0) {
+            jdbc.update(
+                """
+                INSERT INTO reportes_administrativos
+                  (id, fecha, resumen, incidente_id, autoridad_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                reporte.getId(),
+                reporte.getFecha(),
+                reporte.getResumen(),
+                reporte.getIncidente().getId(),
+                reporte.getAutoridad().getId()
+            );
+        }
     }
  
     @Override

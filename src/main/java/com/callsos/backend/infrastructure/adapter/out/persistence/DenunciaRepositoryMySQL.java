@@ -36,23 +36,37 @@ public class DenunciaRepositoryMySQL implements DenunciaRepositoryPort{
  
     @Override
     public void guardar(Denuncia denuncia) {
-        jdbc.update(
-            """
-            INSERT INTO denuncias
-              (id, fecha, tipo, descripcion, latitud, longitud,
-               denunciante_id, incidente_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)
-            """,
-            denuncia.getId(),
-            denuncia.getFecha(),
-            denuncia.getTipo().name(),
+        // FIX (Épica 4): "INSERT ... ON DUPLICATE KEY UPDATE" es sintaxis
+        // exclusiva de MySQL — H2 (usado en los tests @JdbcTest) no puede
+        // ni siquiera PARSEARLA, así que fallaba con BadSqlGrammarException
+        // en el primer INSERT, no solo en el caso de duplicado. Se
+        // reemplaza por UPDATE-si-existe / INSERT-si-no, el mismo patrón
+        // ya usado en IncidenteRepositoryMySQL.guardar() — SQL portátil,
+        // sin extensiones de proveedor, mismo comportamiento neto en MySQL.
+        int filas = jdbc.update(
+            "UPDATE denuncias SET descripcion = ? WHERE id = ?",
             denuncia.getDescripcion(),
-            denuncia.getUbicacion() != null ? denuncia.getUbicacion().getLatitud()  : null,
-            denuncia.getUbicacion() != null ? denuncia.getUbicacion().getLongitud() : null,
-            denuncia.getDenunciante().getId(),
-            denuncia.getIncidente().getId()
+            denuncia.getId()
         );
+
+        if (filas == 0) {
+            jdbc.update(
+                """
+                INSERT INTO denuncias
+                  (id, fecha, tipo, descripcion, latitud, longitud,
+                   denunciante_id, incidente_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                denuncia.getId(),
+                denuncia.getFecha(),
+                denuncia.getTipo().name(),
+                denuncia.getDescripcion(),
+                denuncia.getUbicacion() != null ? denuncia.getUbicacion().getLatitud()  : null,
+                denuncia.getUbicacion() != null ? denuncia.getUbicacion().getLongitud() : null,
+                denuncia.getDenunciante().getId(),
+                denuncia.getIncidente().getId()
+            );
+        }
     }
  
     @Override

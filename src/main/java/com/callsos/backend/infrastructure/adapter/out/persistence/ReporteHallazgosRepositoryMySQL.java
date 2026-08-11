@@ -25,18 +25,29 @@ public class ReporteHallazgosRepositoryMySQL implements ReporteHallazgosReposito
 
     @Override
     public void guardar(ReporteHallazgos reporte) {
-        jdbc.update("""
-            INSERT INTO reportes_hallazgos
-              (id, fecha, descripcion, incidente_id, agente_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)
-            """,
-            reporte.getId(),
-            reporte.getFecha(),
+        // FIX (Épica 4): "ON DUPLICATE KEY UPDATE" (MySQL-only) rompía el
+        // parser de H2 en @JdbcTest. Reemplazado por UPDATE-si-existe /
+        // INSERT-si-no — SQL portátil, mismo patrón que
+        // IncidenteRepositoryMySQL.guardar().
+        int filas = jdbc.update(
+            "UPDATE reportes_hallazgos SET descripcion = ? WHERE id = ?",
             reporte.getDescripcion(),
-            reporte.getIncidente().getId(),
-            reporte.getAgente().getId()
+            reporte.getId()
         );
+
+        if (filas == 0) {
+            jdbc.update("""
+                INSERT INTO reportes_hallazgos
+                  (id, fecha, descripcion, incidente_id, agente_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                reporte.getId(),
+                reporte.getFecha(),
+                reporte.getDescripcion(),
+                reporte.getIncidente().getId(),
+                reporte.getAgente().getId()
+            );
+        }
     }
 
     /**
