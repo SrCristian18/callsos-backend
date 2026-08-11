@@ -1,0 +1,282 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+package com.callsos.backend.infrastructure.adapter.in.web;
+
+import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.model.Denunciante;
+import com.callsos.backend.domain.model.Incidente;
+import com.callsos.backend.domain.port.in.*;
+import com.callsos.backend.domain.valueobject.Ubicacion;
+import com.callsos.backend.infrastructure.config.CorsConfig;
+import com.callsos.backend.infrastructure.config.SecurityConfig;
+import com.callsos.backend.infrastructure.config.security.JwtAuthFilter;
+import com.callsos.backend.infrastructure.config.security.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Épica 4 (ruta técnica) — "Tests de Controllers REST: IncidenteController".
+ *
+ * Usa authentication(...) de spring-security-test para inyectar
+ * directamente un Authentication con rol en el SecurityContext, en vez
+ * de generar JWTs reales — más simple y suficiente para probar el
+ * contrato de autorización de SecurityConfig (que sí se importa real,
+ * sin mocks, para no dar falsos positivos si sus reglas cambian).
+ */
+@WebMvcTest(IncidenteController.class)
+@Import({SecurityConfig.class, CorsConfig.class, JwtAuthFilter.class})
+@DisplayName("IncidenteController")
+class IncidenteControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+
+    @MockBean private JwtService jwtService; // dependencia de JwtAuthFilter, no ejercitada directamente aquí
+    @MockBean private CrearIncidentePort crearIncidente;
+    @MockBean private CambiarEstadoIncidentePort cambiarEstado;
+    @MockBean private ConsultarEstadoIncidentePort consultarEstado;
+    @MockBean private ConsultarIncidentePort consultarIncidente;
+    @MockBean private ConsultarMisIncidentesPort consultarMisIncidentes;
+    @MockBean private ConsultarIncidentesAsignadosPort consultarAsignados;
+    @MockBean private ConsultarIncidentesPorCAIPort consultarPorCAI;
+    @MockBean private ConsultarIncidentesPorEstadoPort consultarPorEstado;
+    @MockBean private AsignarCAIAIncidentePort asignarCAI;
+    @MockBean private AsignarAgentePort asignarAgente;
+    @MockBean private MarcarAgenteEnCaminoPort marcarEnCamino;
+    @MockBean private AtenderIncidentePort atenderIncidente;
+    @MockBean private EvaluarIncidentePort evaluarIncidente;
+
+    private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
+        return new UsernamePasswordAuthenticationToken(
+            id, null, List.of(new SimpleGrantedAuthority("ROLE_" + rol)));
+    }
+
+    private Incidente incidenteDeEjemplo() {
+        Denunciante denunciante = new Denunciante(
+            "den-001", "Juan Test", "Cartagena", "3001111111", "juan@test.com");
+        return new Incidente(
+            "i-001", TipoIncidente.ROBOS_O_ASALTOS, "desc",
+            new Ubicacion(10.4, -75.5), denunciante);
+    }
+
+    // ── Autenticación / autorización básicas ────────────────────────────────
+
+    @Test
+    @DisplayName("GET /{id} sin autenticación retorna 401")
+    void consultarSinAutenticacion() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/i-001"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /{id} autenticado (cualquier rol) retorna 200")
+    void consultarAutenticado() throws Exception {
+        when(consultarIncidente.ejecutar("i-001")).thenReturn(incidenteDeEjemplo());
+
+        mockMvc.perform(get("/api/v1/incidentes/i-001")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value("i-001"));
+    }
+
+    @Test
+    @DisplayName("GET /{id} incidente inexistente retorna 404")
+    void consultarInexistente() throws Exception {
+        when(consultarIncidente.ejecutar("no-existe"))
+            .thenThrow(new IllegalArgumentException("Incidente no encontrado"));
+
+        mockMvc.perform(get("/api/v1/incidentes/no-existe")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isNotFound());
+    }
+
+    // ── Crear incidente ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("POST / con rol DENUNCIANTE retorna 201")
+    void crearComoDenunciante() throws Exception {
+        when(crearIncidente.ejecutar(eq("den-001"), eq(TipoIncidente.ROBOS_O_ASALTOS), any(), any()))
+            .thenReturn(incidenteDeEjemplo());
+
+        String body = """
+            {
+              "denuncianteId": "den-001",
+              "tipo": "ROBOS_O_ASALTOS",
+              "descripcion": "Robo en curso",
+              "ubicacion": {"latitud": 10.4, "longitud": -75.5}
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/incidentes")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST / con rol AGENTE retorna 403 (solo DENUNCIANTE puede crear)")
+    void crearComoAgenteProhibido() throws Exception {
+        String body = """
+            {
+              "denuncianteId": "den-001",
+              "tipo": "ROBOS_O_ASALTOS",
+              "descripcion": "Robo en curso",
+              "ubicacion": {"latitud": 10.4, "longitud": -75.5}
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/incidentes")
+                .with(authentication(actor("ag-001", "AGENTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(crearIncidente);
+    }
+
+    // ── Consultas propias del actor (mis-incidentes / asignados / por-cai) ──
+
+    @Test
+    @DisplayName("GET /mis-incidentes usa el actorId del JWT, no un parámetro del cliente")
+    void misIncidentesUsaActorIdDelJwt() throws Exception {
+        when(consultarMisIncidentes.ejecutar("den-001")).thenReturn(List.of(incidenteDeEjemplo()));
+
+        mockMvc.perform(get("/api/v1/incidentes/mis-incidentes")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value("i-001"));
+
+        verify(consultarMisIncidentes).ejecutar("den-001");
+    }
+
+    @Test
+    @DisplayName("GET /mis-incidentes con rol AGENTE retorna 403")
+    void misIncidentesProhibidoParaAgente() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/mis-incidentes")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /asignados usa el actorId del JWT como agenteId")
+    void asignadosUsaActorIdDelJwt() throws Exception {
+        when(consultarAsignados.ejecutar("ag-001")).thenReturn(List.of(incidenteDeEjemplo()));
+
+        mockMvc.perform(get("/api/v1/incidentes/asignados")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isOk());
+
+        verify(consultarAsignados).ejecutar("ag-001");
+    }
+
+    @Test
+    @DisplayName("GET /por-cai requiere OPERADOR_CAI o COMANDO")
+    void porCaiRequiereRolCorrecto() throws Exception {
+        when(consultarPorCAI.ejecutar("cai-001")).thenReturn(List.of(incidenteDeEjemplo()));
+
+        mockMvc.perform(get("/api/v1/incidentes/por-cai")
+                .with(authentication(actor("cai-001", "OPERADOR_CAI"))))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/incidentes/por-cai")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /por-estado filtra por el query param, visible para COMANDO")
+    void porEstadoComando() throws Exception {
+        when(consultarPorEstado.ejecutar(EstadoIncidente.CREADO))
+            .thenReturn(List.of(incidenteDeEjemplo()));
+
+        mockMvc.perform(get("/api/v1/incidentes/por-estado")
+                .param("estado", "CREADO")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
+            .andExpect(status().isOk());
+
+        verify(consultarPorEstado).ejecutar(EstadoIncidente.CREADO);
+    }
+
+    // ── Mutaciones de estado ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("PATCH /{id}/derivar con rol COMANDO retorna 204")
+    void derivarComoComando() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/derivar")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
+            .andExpect(status().isNoContent());
+
+        verify(asignarCAI).ejecutar("i-001");
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/atender con rol AGENTE retorna 204")
+    void atenderComoAgente() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isNoContent());
+
+        verify(atenderIncidente).ejecutar("i-001");
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/atender con rol DENUNCIANTE retorna 403")
+    void atenderComoDenuncianteProhibido() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(atenderIncidente);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/atender con transición inválida retorna 422")
+    void atenderTransicionInvalida() throws Exception {
+        doThrow(new IllegalStateException("Transición inválida"))
+            .when(atenderIncidente).ejecutar("i-001");
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/cancelar acepta DENUNCIANTE o COMANDO")
+    void cancelarPermiteDenuncianteYComando() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isNoContent());
+
+        verify(cambiarEstado).ejecutar("i-001", EstadoIncidente.CANCELADO);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/cancelar con rol AGENTE retorna 403")
+    void cancelarProhibidoParaAgente() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+}
