@@ -5,11 +5,13 @@
 package com.callsos.backend.infrastructure.adapter.in.websocket;
 
 import com.callsos.backend.domain.model.UbicacionAgente;
+import com.callsos.backend.domain.port.in.PublicarUbicacionAgentePort;
 import com.callsos.backend.domain.port.out.UbicacionAgenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.adapter.in.websocket.UbicacionAgenteController.UbicacionPayload;
 import com.callsos.backend.infrastructure.adapter.in.websocket.UbicacionAgenteController.UbicacionResponse;
 import com.callsos.backend.infrastructure.adapter.in.websocket.UbicacionAgenteController.UltimaUbicacionRequest;
+import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,11 +39,24 @@ import static org.mockito.Mockito.*;
  * y solicitarUltimaPosicion() son métodos Java normales invocados por
  * Spring al llegar un frame STOMP — se prueban invocándolos directamente,
  * igual que se hizo con JwtAuthFilter.doFilterInternal().
+ *
+ * ACTUALIZADO tras rebase: el controller ahora recibe 4 dependencias
+ * (antes 2) — PublicarUbicacionAgentePort y SimulacionEstado se agregaron
+ * para soportar la simulación de recorrido GPS (pruebas piloto). La
+ * lógica de "persistir + publicar en el topic STOMP" para una posición
+ * REAL ya no vive en este controller — se delegó a
+ * PublicarUbicacionAgenteService (ver PublicarUbicacionAgenteServiceTest),
+ * así que las interacciones con repositorio/messagingTemplate para
+ * recibirUbicacion() se reemplazan por verificar la llamada al puerto.
+ * repositorio/messagingTemplate siguen usándose directamente SOLO en
+ * solicitarUltimaPosicion(), que no cambió.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UbicacionAgenteController")
 class UbicacionAgenteControllerTest {
 
+    @Mock PublicarUbicacionAgentePort publicarUbicacion;
+    @Mock SimulacionEstado simulacionEstado;
     @Mock UbicacionAgenteRepositoryPort repositorio;
     @Mock SimpMessagingTemplate messagingTemplate;
 
@@ -49,7 +64,8 @@ class UbicacionAgenteControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new UbicacionAgenteController(repositorio, messagingTemplate);
+        controller = new UbicacionAgenteController(
+            publicarUbicacion, simulacionEstado, repositorio, messagingTemplate);
     }
 
     private UsernamePasswordAuthenticationToken principalAgente(String agenteId) {
@@ -65,40 +81,59 @@ class UbicacionAgenteControllerTest {
         assertThrows(IllegalStateException.class,
             () -> controller.recibirUbicacion("i-001", payload, null));
 
-        verifyNoInteractions(repositorio, messagingTemplate);
+        verifyNoInteractions(repositorio, messagingTemplate, publicarUbicacion);
     }
 
     @Test
     @DisplayName("usa el agenteId del Principal (JWT), NO el del payload — previene suplantación")
     void usaAgenteIdDelPrincipalNoDelPayload() {
-        // El payload dice "ag-otro", pero el Principal autenticado es "ag-001"
+        // El payload dice "ag-otro", pero el Principal autenticado es "ag-001".
+        // REGRESIÓN cubierta aquí: tras el rebase, recibirUbicacion() llamaba
+        // a publicarUbicacion.publicar(payload.agenteId(), ...) en vez de
+        // agenteIdAutenticado — este test debe fallar si esa regresión
+        // vuelve a introducirse.
         UbicacionPayload payload = new UbicacionPayload("ag-otro", 10.4, -75.5);
         Principal principal = principalAgente("ag-001");
 
         controller.recibirUbicacion("i-001", payload, principal);
 
-        ArgumentCaptor<UbicacionAgente> captor = ArgumentCaptor.forClass(UbicacionAgente.class);
-        verify(repositorio).guardar(captor.capture());
-        assertEquals("ag-001", captor.getValue().getAgenteId(),
+        ArgumentCaptor<String> agenteIdCaptor = ArgumentCaptor.forClass(String.class);
+        verify(publicarUbicacion).publicar(
+            agenteIdCaptor.capture(), eq("i-001"), any(Ubicacion.class));
+        assertEquals("ag-001", agenteIdCaptor.getValue(),
             "Debe usar el agenteId autenticado, nunca el que declara el cliente en el payload");
-        assertEquals("i-001", captor.getValue().getIncidenteId());
     }
 
     @Test
-    @DisplayName("publica en /topic/incidente/{id}/ubicacion con lat/lon del payload")
-    void publicaEnElTopicoCorrecto() {
+    @DisplayName("delega en PublicarUbicacionAgentePort con la Ubicacion construida del payload")
+    void delegaEnPuertoConUbicacionDelPayload() {
         UbicacionPayload payload = new UbicacionPayload("ag-001", 10.4, -75.5);
         Principal principal = principalAgente("ag-001");
 
         controller.recibirUbicacion("i-001", payload, principal);
 
-        ArgumentCaptor<UbicacionResponse> captor = ArgumentCaptor.forClass(UbicacionResponse.class);
-        verify(messagingTemplate).convertAndSend(
-            eq("/topic/incidente/i-001/ubicacion"), captor.capture());
+        ArgumentCaptor<Ubicacion> ubicacionCaptor = ArgumentCaptor.forClass(Ubicacion.class);
+        verify(publicarUbicacion).publicar(
+            eq("ag-001"), eq("i-001"), ubicacionCaptor.capture());
 
-        assertEquals(10.4, captor.getValue().latitud());
-        assertEquals(-75.5, captor.getValue().longitud());
-        assertNotNull(captor.getValue().timestamp());
+        assertEquals(10.4, ubicacionCaptor.getValue().getLatitud());
+        assertEquals(-75.5, ubicacionCaptor.getValue().getLongitud());
+        // La persistencia y la publicación en el topic STOMP para una
+        // posición real ya no ocurren en el controller — quedan a cargo de
+        // PublicarUbicacionAgenteService (ver PublicarUbicacionAgenteServiceTest).
+        verifyNoInteractions(repositorio, messagingTemplate);
+    }
+
+    @Test
+    @DisplayName("simulación activa para el incidente: ignora la ubicación real sin tocar nada")
+    void simulacionActivaIgnoraUbicacionReal() {
+        UbicacionPayload payload = new UbicacionPayload("ag-001", 10.4, -75.5);
+        Principal principal = principalAgente("ag-001");
+        when(simulacionEstado.estaSimulando("i-001")).thenReturn(true);
+
+        controller.recibirUbicacion("i-001", payload, principal);
+
+        verifyNoInteractions(publicarUbicacion, repositorio, messagingTemplate);
     }
 
     @Test
@@ -111,7 +146,7 @@ class UbicacionAgenteControllerTest {
         assertThrows(IllegalStateException.class,
             () -> controller.recibirUbicacion("i-001", payload, principal));
 
-        verifyNoInteractions(repositorio, messagingTemplate);
+        verifyNoInteractions(repositorio, messagingTemplate, publicarUbicacion);
     }
 
     @Test
@@ -123,7 +158,7 @@ class UbicacionAgenteControllerTest {
         assertThrows(IllegalArgumentException.class,
             () -> controller.recibirUbicacion("i-001", payload, principal));
 
-        verifyNoInteractions(repositorio, messagingTemplate);
+        verifyNoInteractions(repositorio, messagingTemplate, publicarUbicacion);
     }
 
     @Test
