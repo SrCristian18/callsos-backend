@@ -123,7 +123,13 @@ public class UbicacionAgenteController {
         // Construir el value object — Ubicacion valida los rangos de lat/lon
         Ubicacion ubicacion = new Ubicacion(payload.latitud(), payload.longitud());        
         
-        publicarUbicacion.publicar(payload.agenteId(), incidenteId, ubicacion);
+        // FIX: se estaba pasando payload.agenteId() (dato no confiable del
+        // cliente) en vez de agenteIdAutenticado (extraído del JWT arriba).
+        // Esto reintroducía silenciosamente la vulnerabilidad de suplantación
+        // que el comentario de agenteIdAutenticado ya documentaba como
+        // resuelta — cualquier agente conectado podía publicar ubicaciones
+        // a nombre de OTRO agente con solo cambiar el campo en el JSON.
+        publicarUbicacion.publicar(agenteIdAutenticado, incidenteId, ubicacion);
     }
     /* Descontinuado
 

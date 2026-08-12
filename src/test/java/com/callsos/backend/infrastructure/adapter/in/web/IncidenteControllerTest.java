@@ -66,6 +66,13 @@ class IncidenteControllerTest {
     @MockBean private MarcarAgenteEnCaminoPort marcarEnCamino;
     @MockBean private AtenderIncidentePort atenderIncidente;
     @MockBean private EvaluarIncidentePort evaluarIncidente;
+    // FIX: IncidenteController requiere SimularRecorridoAgentePort en su
+    // constructor (última dependencia, para el endpoint de simulación de
+    // recorrido). Faltaba este @MockBean, por lo que Spring no podía
+    // resolver el bean al construir el controller y el ApplicationContext
+    // de este slice test fallaba al cargar — arrastrando los 16 tests
+    // de esta clase con "ApplicationContext failure threshold exceeded".
+    @MockBean private SimularRecorridoAgentePort simularRecorrido;
 
     private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
         return new UsernamePasswordAuthenticationToken(
