@@ -4,8 +4,10 @@
 -- AuthResponse con "nombre" en vez de crear un endpoint de perfil separado).
 --
 -- Por qué en "usuarios" y no en cada tabla de actor (denunciantes/agentes):
---   COMANDO no tiene tabla propia de dominio (ver 03_fix_actor_ids.sql,
---   punto 4 — su actor_id es solo un identificador simbólico sin JOIN).
+--   COMANDO no tiene tabla propia de dominio (ver 02_data.sql, comentario
+--   sobre actor_id de 'comandante' — su actor_id es solo un identificador
+--   simbólico sin JOIN; antes vivía en 03_fix_actor_ids.sql, fusionado a
+--   02_data.sql en la Épica 6).
 --   OPERADOR_CAI apunta al CAI (unidades_policiales), no a una persona.
 --   Guardar "nombre" en "usuarios" evita un JOIN condicional por rol contra
 --   3 tablas distintas, y le da a COMANDO un lugar real donde existir.

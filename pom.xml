@@ -164,6 +164,68 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- Épica 7 — JaCoCo: cobertura de tests con umbral mínimo obligatorio.
+			     "prepare-agent" instrumenta las clases al correr `mvn test`;
+			     "report" genera el HTML/XML legible en target/site/jacoco/
+			     después de los tests; "check" (fase verify) FALLA EL BUILD si
+			     la cobertura cae debajo del umbral — por eso el CI corre
+			     `mvn verify`, no `mvn test`, a partir de esta épica. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.12</version>
+				<executions>
+					<execution>
+						<id>jacoco-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<!-- 70%: exigente pero alcanzable dado lo cubierto en
+										     la Épica 4 (repos, servicios, controllers,
+										     seguridad). Si baja de esto, algo perdió
+										     cobertura y el build debe fallar, no pasar
+										     en silencio. -->
+										<limit>
+											<counter>INSTRUCTION</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.70</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+							<excludes>
+								<!-- Clase main: un solo SpringApplication.run(), sin lógica -->
+								<exclude>**/BackendApplication.class</exclude>
+								<!-- DTOs de request/response: getters/setters puros, sin
+								     ramas — ya se ejercitan indirectamente en los
+								     @WebMvcTest, pero medirlos infla el % sin aportar
+								     señal real sobre lógica de negocio -->
+								<exclude>**/adapter/in/web/dto/**</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
