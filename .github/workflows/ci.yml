@@ -26,8 +26,13 @@ jobs:
 
       # Los tests usan H2 en memoria (ver src/test/resources/application-test.yml),
       # por lo que no se necesita levantar MySQL real en este pipeline.
-      - name: Ejecutar tests
-        run: ./mvnw test
+      #
+      # Épica 7: se corre `verify`, no `test` — la fase `verify` encadena
+      # test -> jacoco:report -> jacoco:check (umbral mínimo de cobertura,
+      # ver pom.xml). Si la cobertura cae debajo del umbral, el build
+      # falla acá, no en silencio.
+      - name: Ejecutar tests y verificar cobertura mínima (JaCoCo)
+        run: ./mvnw verify
 
       - name: Publicar resultados de tests
         if: always()
@@ -35,3 +40,10 @@ jobs:
         with:
           name: resultados-tests-backend
           path: target/surefire-reports/
+
+      - name: Publicar reporte de cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-jacoco-backend
+          path: target/site/jacoco/

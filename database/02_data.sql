@@ -45,11 +45,47 @@ INSERT INTO unidades_policiales (nombre, direccion, latitud, longitud, telefono)
 -- =============================================================================
 INSERT IGNORE INTO denunciantes (id, nombre, origen, telefono, correo, token_fcm) VALUES
 ('test-denunciante-001', 'Juan Pérez', 'Cartagena', '3001234567', 'juan@test.com', NULL);
+
+-- =============================================================================
+-- Agente de prueba, vinculado a CAI LA ESPERANZA
+-- FUSIONADO desde database/03_fix_actor_ids.sql (Épica 6): ese script
+-- vinculaba este agente (y a operador.cai más abajo) a
+-- '28b11146-5f7f-11f1-a9a5-7c8ae11a1551', un UUID literal capturado a
+-- mano de una ejecución previa. unidades_policiales.id es
+-- `DEFAULT (UUID())` — un id ALEATORIO en cada INSERT — así que ese
+-- literal solo coincidía por casualidad contra una BD ya sembrada antes;
+-- en cualquier `docker-compose up` desde cero, CAI LA ESPERANZA nace con
+-- un UUID distinto y el parche vinculaba todo a un CAI inexistente, en
+-- silencio. Se reemplaza el literal por una subconsulta determinística
+-- por nombre, que siempre resuelve al CAI real sin importar qué UUID le
+-- haya tocado en esta ejecución.
+-- =============================================================================
+INSERT IGNORE INTO agentes (id, nombre, direccion, latitud, longitud, telefono, estado, unidad_policial_id)
+VALUES (
+    'test-agente-001',
+    'Pedro Agente',
+    'CAI La Esperanza, Cartagena',
+    10.41714758,
+    -75.51951913,
+    '3009876543',
+    'DISPONIBLE',
+    (SELECT id FROM unidades_policiales WHERE nombre = 'CAI LA ESPERANZA')
+);
+
 -- =============================================================================
 -- Usuarios de autenticación — contraseña de todos: "password123"
 -- Hash generado con BCrypt rounds=10.
 -- Para generar nuevos hashes: https://bcrypt-generator.com
 -- o con Java: new BCryptPasswordEncoder().encode("password123")
+--
+-- actor_id: cada usuario apunta a SU PROPIO actor real. FUSIONADO desde
+-- database/03_fix_actor_ids.sql (Épica 6) — antes, los 4 usuarios tenían
+-- actor_id = 'test-denunciante-001' (los 4 apuntando al mismo
+-- denunciante), lo que rompía todo endpoint filtrado por actorId
+-- (mis-incidentes, asignados, por-cai) para cualquier rol que no fuera
+-- DENUNCIANTE. 'comandante' usa un identificador simbólico fijo porque
+-- Comando no tiene tabla de actor propia en el dominio — ningún endpoint
+-- hace JOIN contra su actor_id, solo se usa como subject del JWT.
 -- =============================================================================
 INSERT IGNORE INTO usuarios (id, username, password, rol, actor_id, activo) VALUES
 ('usr-001', 'juan.denunciante',
@@ -58,12 +94,12 @@ INSERT IGNORE INTO usuarios (id, username, password, rol, actor_id, activo) VALU
 
 ('usr-002', 'pedro.agente',
  '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
- 'AGENTE', 'test-denunciante-001', TRUE),
+ 'AGENTE', 'test-agente-001', TRUE),
 
 ('usr-003', 'operador.cai',
  '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
- 'OPERADOR_CAI', 'test-denunciante-001', TRUE),
+ 'OPERADOR_CAI', (SELECT id FROM unidades_policiales WHERE nombre = 'CAI LA ESPERANZA'), TRUE),
 
 ('usr-004', 'comandante',
  '$2a$10$9aim9M3ypXpg0bN29YA/5.SEBPYqvVXh6ei.6r/Qa156tLtcNCJoe',
- 'COMANDO', 'test-denunciante-001', TRUE);
+ 'COMANDO', 'test-comando-001', TRUE);
