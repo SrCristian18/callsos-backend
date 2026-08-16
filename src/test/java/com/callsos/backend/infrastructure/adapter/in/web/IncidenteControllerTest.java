@@ -6,6 +6,7 @@ package com.callsos.backend.infrastructure.adapter.in.web;
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.*;
@@ -73,6 +74,7 @@ class IncidenteControllerTest {
     // de este slice test fallaba al cargar — arrastrando los 16 tests
     // de esta clase con "ApplicationContext failure threshold exceeded".
     @MockBean private SimularRecorridoAgentePort simularRecorrido;
+    @MockBean private ActualizarTipoIncidentePort actualizarTipo;
 
     private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
         return new UsernamePasswordAuthenticationToken(
@@ -285,5 +287,145 @@ class IncidenteControllerTest {
         mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
                 .with(authentication(actor("ag-001", "AGENTE"))))
             .andExpect(status().isForbidden());
+    }
+
+    // ── Actualizar tipo de incidente — Épica 1 ──────────────────────────────
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo con rol DENUNCIANTE (dueño) retorna 204")
+    void actualizarTipoComoDenuncianteDueno() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isNoContent());
+
+        verify(actualizarTipo).ejecutar("i-001", "den-001", TipoIncidente.RIÑAS_O_PELEAS);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo con rol AGENTE retorna 403 (solo DENUNCIANTE)")
+    void actualizarTipoProhibidoParaAgente() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("ag-001", "AGENTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(actualizarTipo);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo con rol COMANDO retorna 403 (esta acción es solo del denunciante)")
+    void actualizarTipoProhibidoParaComando() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("usr-comando", "COMANDO")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(actualizarTipo);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo sin autenticación retorna 401")
+    void actualizarTipoSinAutenticacion() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo con body sin nuevoTipo retorna 400")
+    void actualizarTipoSinCuerpoValido() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content("{}"))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(actualizarTipo);
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo sobre incidente de otro denunciante retorna 403 (ownership)")
+    void actualizarTipoIncidenteAjenoRetorna403() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+        doThrow(new AccesoDenegadoException(
+                "El denunciante autenticado no es el dueño de este incidente."))
+            .when(actualizarTipo).ejecutar("i-001", "den-999", TipoIncidente.RIÑAS_O_PELEAS);
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("den-999", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo sobre incidente cerrado retorna 422")
+    void actualizarTipoIncidenteCerradoRetorna422() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+        doThrow(new IllegalStateException("No se puede cambiar el tipo de un incidente FINALIZADO."))
+            .when(actualizarTipo).ejecutar("i-001", "den-001", TipoIncidente.RIÑAS_O_PELEAS);
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo con el mismo tipo actual retorna 422")
+    void actualizarMismoTipoRetorna422() throws Exception {
+        String body = """
+            { "nuevoTipo": "ROBOS_O_ASALTOS" }
+            """;
+        doThrow(new IllegalStateException("El incidente ya tiene el tipo ROBOS_O_ASALTOS."))
+            .when(actualizarTipo).ejecutar("i-001", "den-001", TipoIncidente.ROBOS_O_ASALTOS);
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/tipo")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/tipo sobre incidente inexistente retorna 404")
+    void actualizarTipoIncidenteInexistenteRetorna404() throws Exception {
+        String body = """
+            { "nuevoTipo": "RIÑAS_O_PELEAS" }
+            """;
+        doThrow(new IllegalArgumentException("Incidente no encontrado: no-existe"))
+            .when(actualizarTipo).ejecutar("no-existe", "den-001", TipoIncidente.RIÑAS_O_PELEAS);
+
+        mockMvc.perform(patch("/api/v1/incidentes/no-existe/tipo")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isNotFound());
     }
 }

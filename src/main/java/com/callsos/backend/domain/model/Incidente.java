@@ -32,7 +32,7 @@ public class Incidente {
  
     private final String id;
     private final LocalDateTime fechaHora;
-    private final TipoIncidente tipo;
+    private TipoIncidente tipo;
     private String descripcion;
     private EstadoIncidente estado;
     private final Ubicacion ubicacion;
@@ -113,6 +113,36 @@ public class Incidente {
         this.estado = EstadoIncidente.CANCELADO;
     }
  
+    /**
+     * El denunciante actualiza el tipo de incidente mientras la situación
+     * evoluciona (ej: ROBOS_O_ASALTOS → RIÑAS_O_PELEAS).
+     *
+     * Reglas de negocio (Épica 1):
+     *   - Solo permitido si el incidente está activo (no FINALIZADO ni
+     *     CANCELADO) — sin restricción adicional por estado intermedio:
+     *     el denunciante puede corregir el tipo incluso con agente en
+     *     camino o en atención, porque la situación real puede seguir
+     *     evolucionando hasta el cierre.
+     *   - El nuevo tipo debe ser distinto al actual — evita ruido de
+     *     auditoría y llamadas no-op.
+     *
+     * La validación de OWNERSHIP (que quien llama sea el denunciante dueño)
+     * es responsabilidad del caso de uso (ActualizarTipoIncidenteService),
+     * no del agregado — el dominio no conoce actores ni JWT.
+     */
+    public void cambiarTipo(TipoIncidente nuevoTipo) {
+        if (nuevoTipo == null)
+            throw new IllegalArgumentException(
+                "El nuevo tipo de incidente es obligatorio.");
+        if (!estaActivo())
+            throw new IllegalStateException(
+                "No se puede cambiar el tipo de un incidente " + this.estado + ".");
+        if (nuevoTipo == this.tipo)
+            throw new IllegalStateException(
+                "El incidente ya tiene el tipo " + nuevoTipo + ".");
+        this.tipo = nuevoTipo;
+    }
+
     /**
      * Cambio de estado genérico — mantiene compatibilidad con
      * los casos de uso existentes (CambiarEstadoIncidenteService).

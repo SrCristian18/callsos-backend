@@ -9,6 +9,7 @@ package com.callsos.backend.infrastructure.persistence;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.infrastructure.adapter.in.web.GlobalExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,20 @@ public class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), result.getStatus());
         assertEquals("Regla de negocio violada", result.getTitle());
     }
+
+    @Test
+    @DisplayName("AccesoDenegadoException → 403 Forbidden (Épica 1)")
+    void accesoDenegado_produce403() {
+        ProblemDetail result = handler.handleForbidden(
+            new AccesoDenegadoException(
+                "El denunciante autenticado no es el dueño de este incidente."));
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), result.getStatus());
+        assertEquals("Acceso denegado", result.getTitle());
+        assertEquals(
+            "El denunciante autenticado no es el dueño de este incidente.",
+            result.getDetail());
+    }
  
     @Test
     @DisplayName("Exception genérica → 500 sin exponer stack trace al cliente")
@@ -73,9 +88,11 @@ public class GlobalExceptionHandlerTest {
         ProblemDetail p1 = handler.handleNotFound(new IllegalArgumentException("x"));
         ProblemDetail p2 = handler.handleBusinessRule(new IllegalStateException("x"));
         ProblemDetail p3 = handler.handleGeneric(new Exception("x"));
- 
+        ProblemDetail p4 = handler.handleForbidden(new AccesoDenegadoException("x"));
+
         assertNotNull(p1.getProperties().get("timestamp"));
         assertNotNull(p2.getProperties().get("timestamp"));
         assertNotNull(p3.getProperties().get("timestamp"));
+        assertNotNull(p4.getProperties().get("timestamp"));
     }
 }

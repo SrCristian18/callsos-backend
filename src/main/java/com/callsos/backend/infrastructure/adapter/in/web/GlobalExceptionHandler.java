@@ -9,6 +9,7 @@ package com.callsos.backend.infrastructure.adapter.in.web;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -73,6 +74,25 @@ public class GlobalExceptionHandler {
         return problem;
     }
  
+    /**
+     * Violación de ownership/autorización sobre un recurso → 403 Forbidden.
+     * Lanzado, por ejemplo, cuando un denunciante intenta modificar un
+     * incidente que no le pertenece (Épica 1).
+     *
+     * Distinto de la ausencia de rol (manejada por Spring Security antes
+     * de llegar al caso de uso): esto es "autenticado, con el rol
+     * correcto, pero no dueño del recurso concreto".
+     */
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ProblemDetail handleForbidden(AccesoDenegadoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.FORBIDDEN, ex.getMessage());
+        problem.setType(URI.create("about:blank"));
+        problem.setTitle("Acceso denegado");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
     /**
      * Validación de DTO fallida (@Valid) → 400 Bad Request.
      * Incluye todos los campos con error para que el cliente Flutter pueda mostrarlos.

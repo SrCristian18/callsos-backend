@@ -39,12 +39,18 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
         String unidadId = (incidente.getUnidadPolicial() != null)
             ? incidente.getUnidadPolicial().getId() : null;
 
+        // FIX (Épica 1): "tipo" faltaba en el SET del UPDATE — solo se
+        // escribía en el INSERT inicial. Cualquier cambio de tipo en
+        // memoria (ver Incidente.cambiarTipo()) se perdía silenciosamente
+        // al persistir, porque guardar() hace upsert por "filas == 0" y
+        // el UPDATE nunca tocaba esta columna.
         int filas = jdbc.update("""
             UPDATE incidentes
-            SET descripcion = ?, estado = ?, latitud = ?,
+            SET tipo = ?, descripcion = ?, estado = ?, latitud = ?,
                 longitud = ?, unidad_policial_id = ?
             WHERE id = ?
             """,
+            incidente.getTipo().name(),
             incidente.getDescripcion(),
             incidente.getEstado().name(),
             incidente.getUbicacion().getLatitud(),

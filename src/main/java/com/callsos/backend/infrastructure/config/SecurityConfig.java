@@ -104,6 +104,13 @@ public class SecurityConfig {
                     .hasRole("AGENTE")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/cancelar")
                     .hasAnyRole("DENUNCIANTE", "COMANDO")
+                // Épica 1 — actualización del tipo de incidente: solo el
+                // DENUNCIANTE puede iniciarla. El ownership (que sea EL
+                // dueño del incidente, no cualquier denunciante) se valida
+                // dentro de ActualizarTipoIncidenteService, no aquí — esta
+                // regla solo garantiza el rol correcto.
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/tipo")
+                    .hasRole("DENUNCIANTE")
 
                 // ── Reportes ──────────────────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/api/v1/reportes/hallazgos")

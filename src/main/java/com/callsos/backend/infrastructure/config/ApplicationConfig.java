@@ -207,6 +207,17 @@ public class ApplicationConfig {
         return new ConsultarIncidentesPorEstadoService(incidenteRepo);
     }
 
+    /**
+     * Épica 1 — el denunciante actualiza el tipo de su incidente mientras
+     * está activo. Ownership + regla de estado se validan dentro del
+     * servicio/agregado, no aquí.
+     */
+    @Bean
+    public ActualizarTipoIncidentePort actualizarTipoIncidentePort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new ActualizarTipoIncidenteService(incidenteRepo);
+    }
+
     //Tracking GPS - Simulacion de recorrido (SOLO para pruebas piloto)
     @Bean
     public PublicarUbicacionAgentePort publicarUbicacionAgentePort(

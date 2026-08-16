@@ -108,6 +108,23 @@ class IncidenteRepositoryMySQLTest {
     }
 
     @Test
+    @DisplayName("guardar persiste el nuevo tipo tras cambiarTipo() — Épica 1")
+    void guardarPersisteNuevoTipo() {
+        Incidente incidente = new Incidente(
+            "i-integ-tipo-001", TipoIncidente.ROBOS_O_ASALTOS,
+            "desc", ubicacion, denunciante);
+        repository.guardar(incidente);
+
+        incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+        repository.guardar(incidente);
+
+        Optional<Incidente> actualizado = repository.buscarPorId("i-integ-tipo-001");
+        assertTrue(actualizado.isPresent());
+        assertEquals(TipoIncidente.RIÑAS_O_PELEAS, actualizado.get().getTipo(),
+            "El UPDATE debe incluir la columna tipo, no solo el INSERT inicial");
+    }
+
+    @Test
     @DisplayName("buscarPorId retorna vacío si el incidente no existe")
     void buscarInexistente() {
         Optional<Incidente> resultado = repository.buscarPorId("no-existe-xyz");
