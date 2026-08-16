@@ -160,6 +160,73 @@ class IncidenteTest {
             assertEquals(EstadoIncidente.EN_ATENCION, incidente.getEstado());
         }
     }
+
+    @Nested
+    @DisplayName("cambiarTipo — Épica 1")
+    class CambioDeTipo {
+
+        @Test @DisplayName("cambia el tipo en CREADO")
+        void cambiaEnCreado() {
+            incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+            assertEquals(TipoIncidente.RIÑAS_O_PELEAS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("cambia el tipo en DERIVADO_A_CAI")
+        void cambiaEnDerivado() {
+            incidente.derivarACAI(caiDePrueba());
+            incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+            assertEquals(TipoIncidente.RIÑAS_O_PELEAS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("cambia el tipo en AGENTE_ASIGNADO")
+        void cambiaEnAsignado() {
+            llevarAEstado(EstadoIncidente.AGENTE_ASIGNADO);
+            incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+            assertEquals(TipoIncidente.RIÑAS_O_PELEAS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("cambia el tipo en AGENTE_EN_CAMINO")
+        void cambiaEnCamino() {
+            llevarAEstado(EstadoIncidente.AGENTE_EN_CAMINO);
+            incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+            assertEquals(TipoIncidente.RIÑAS_O_PELEAS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("cambia el tipo en EN_ATENCION")
+        void cambiaEnAtencion() {
+            llevarAEstado(EstadoIncidente.EN_ATENCION);
+            incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS);
+            assertEquals(TipoIncidente.RIÑAS_O_PELEAS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("rechaza el cambio si el incidente está FINALIZADO")
+        void rechazaEnFinalizado() {
+            llevarAEstado(EstadoIncidente.FINALIZADO);
+            assertThrows(IllegalStateException.class,
+                () -> incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS));
+            assertEquals(TipoIncidente.ROBOS_O_ASALTOS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("rechaza el cambio si el incidente está CANCELADO")
+        void rechazaEnCancelado() {
+            incidente.cancelar();
+            assertThrows(IllegalStateException.class,
+                () -> incidente.cambiarTipo(TipoIncidente.RIÑAS_O_PELEAS));
+            assertEquals(TipoIncidente.ROBOS_O_ASALTOS, incidente.getTipo());
+        }
+
+        @Test @DisplayName("rechaza el cambio si el nuevo tipo es igual al actual")
+        void rechazaMismoTipo() {
+            assertThrows(IllegalStateException.class,
+                () -> incidente.cambiarTipo(TipoIncidente.ROBOS_O_ASALTOS));
+        }
+
+        @Test @DisplayName("rechaza el cambio si el nuevo tipo es null")
+        void rechazaTipoNulo() {
+            assertThrows(IllegalArgumentException.class,
+                () -> incidente.cambiarTipo(null));
+        }
+    }
  
     // ── Helpers ────────────────────────────────────────────────────────────
  

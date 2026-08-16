@@ -4,6 +4,7 @@ import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.valueobject.Ubicacion;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.ActualizarTipoIncidenteRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CambiarEstadoRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CrearIncidenteRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.IncidenteResponse;
@@ -54,6 +55,7 @@ public class IncidenteController {
     private final AtenderIncidentePort atenderIncidente;
     private final EvaluarIncidentePort evaluarIncidente;
     private final SimularRecorridoAgentePort simularRecorrido;
+    private final ActualizarTipoIncidentePort actualizarTipo;
 
     @Value("${SIMULACION_HABILITADA:false}")
     private boolean simulacionHabilitada;
@@ -72,7 +74,8 @@ public class IncidenteController {
             MarcarAgenteEnCaminoPort marcarEnCamino,
             AtenderIncidentePort atenderIncidente,
             EvaluarIncidentePort evaluarIncidente,
-            SimularRecorridoAgentePort simularRecorrido) {
+            SimularRecorridoAgentePort simularRecorrido,
+            ActualizarTipoIncidentePort actualizarTipo) {
         this.crearIncidente        = crearIncidente;
         this.cambiarEstado         = cambiarEstado;
         this.consultarEstado       = consultarEstado;
@@ -87,6 +90,7 @@ public class IncidenteController {
         this.atenderIncidente      = atenderIncidente;
         this.evaluarIncidente      = evaluarIncidente;
         this.simularRecorrido      = simularRecorrido;
+        this.actualizarTipo        = actualizarTipo;
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
@@ -244,6 +248,25 @@ public class IncidenteController {
     @PatchMapping("/{id}/cancelar")
     public ResponseEntity<Void> cancelar(@PathVariable String id) {
         cambiarEstado.ejecutar(id, EstadoIncidente.CANCELADO);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * PATCH /{id}/tipo — el DENUNCIANTE dueño actualiza el tipo de su
+     * incidente mientras está activo (Épica 1).
+     *
+     * El actorId se extrae del JWT (Authentication), nunca del body —
+     * mismo patrón de ownership que DenuncianteController.registrarToken.
+     * La comparación real contra el denunciante dueño del incidente ocurre
+     * dentro de ActualizarTipoIncidenteService (403 si no coincide).
+     */
+    @PatchMapping("/{id}/tipo")
+    public ResponseEntity<Void> actualizarTipo(
+            @PathVariable String id,
+            @Valid @RequestBody ActualizarTipoIncidenteRequest request,
+            Authentication authentication) {
+        String actorId = authentication.getName();
+        actualizarTipo.ejecutar(id, actorId, request.getNuevoTipo());
         return ResponseEntity.noContent().build();
     }
 }
