@@ -195,14 +195,24 @@ CREATE TABLE IF NOT EXISTS reportes_administrativos (
 -- Trazabilidad completa del ciclo de vida del incidente.
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS auditoria_incidente (
-    id              BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
-    incidente_id    VARCHAR(36)      NOT NULL,
-    estado_anterior VARCHAR(30)      NULL,
-    estado_nuevo    VARCHAR(30)      NOT NULL,
-    actor_id        VARCHAR(36)      NULL,
-    actor_rol       VARCHAR(20)      NULL,
-    timestamp       DATETIME         NOT NULL DEFAULT NOW(),
-    detalle         VARCHAR(255)     NULL,
+    id                      BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    incidente_id            VARCHAR(36)      NOT NULL,
+    estado_anterior         VARCHAR(30)      NULL,
+    estado_nuevo            VARCHAR(30)      NOT NULL,
+    actor_id                VARCHAR(36)      NULL,
+    actor_rol               VARCHAR(20)      NULL,
+    timestamp               DATETIME         NOT NULL DEFAULT NOW(),
+    detalle                 VARCHAR(255)     NULL,
+    -- Épica 2: columnas genéricas (ALTER TABLE en vez de tabla nueva —
+    -- decisión confirmada con el usuario) para expresar cambios que no son
+    -- una transición de estado, ej. "tipo cambió de X a Y". Cuando el
+    -- registro es de un cambio de estado normal, estas 3 columnas quedan
+    -- NULL; cuando es un cambio de campo genérico, campo/valor_*_generico
+    -- se completan y estado_anterior queda NULL (estado_nuevo lleva el
+    -- estado vigente al momento del evento, sin representar una transición).
+    campo                   VARCHAR(50)      NULL,
+    valor_anterior_generico VARCHAR(100)     NULL,
+    valor_nuevo_generico    VARCHAR(100)     NULL,
     PRIMARY KEY (id),
     INDEX idx_incidente (incidente_id),
     INDEX idx_timestamp (timestamp)

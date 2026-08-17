@@ -93,29 +93,33 @@ public class ApplicationConfig {
     public CrearIncidentePort crearIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
             DenuncianteRepositoryPort denuncianteRepo,
-            DenunciaRepositoryPort denunciaRepo) {
-        return new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo);
+            DenunciaRepositoryPort denunciaRepo,
+            EventPublisherPort eventPublisher) {
+        return new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo, eventPublisher);
     }
  
     @Bean
     public AsignarCAIAIncidentePort asignarCAIAIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
-            UnidadPolicialRepositoryPort unidadRepo) {
-        return new AsignarCAIAIncidenteService(incidenteRepo, unidadRepo);
+            UnidadPolicialRepositoryPort unidadRepo,
+            EventPublisherPort eventPublisher) {
+        return new AsignarCAIAIncidenteService(incidenteRepo, unidadRepo, eventPublisher);
     }
  
     @Bean
     public AsignarAgentePort asignarAgentePort(
             AgenteRepositoryPort agenteRepo,
             IncidenteRepositoryPort incidenteRepo,
-            AsignacionRepositoryPort asignacionRepo) {
-        return new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo);
+            AsignacionRepositoryPort asignacionRepo,
+            EventPublisherPort eventPublisher) {
+        return new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo, eventPublisher);
     }
  
     @Bean
     public CambiarEstadoIncidentePort cambiarEstadoIncidentePort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new CambiarEstadoIncidenteService(incidenteRepo);
+            IncidenteRepositoryPort incidenteRepo,
+            EventPublisherPort eventPublisher) {
+        return new CambiarEstadoIncidenteService(incidenteRepo, eventPublisher);
     }
  
     @Bean
@@ -126,8 +130,9 @@ public class ApplicationConfig {
  
     @Bean
     public AtenderIncidentePort atenderIncidentePort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new AtenderIncidenteService(incidenteRepo);
+            IncidenteRepositoryPort incidenteRepo,
+            EventPublisherPort eventPublisher) {
+        return new AtenderIncidenteService(incidenteRepo, eventPublisher);
     }
  
     @Bean
@@ -214,8 +219,9 @@ public class ApplicationConfig {
      */
     @Bean
     public ActualizarTipoIncidentePort actualizarTipoIncidentePort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new ActualizarTipoIncidenteService(incidenteRepo);
+            IncidenteRepositoryPort incidenteRepo,
+            EventPublisherPort eventPublisher) {
+        return new ActualizarTipoIncidenteService(incidenteRepo, eventPublisher);
     }
 
     //Tracking GPS - Simulacion de recorrido (SOLO para pruebas piloto)

@@ -9,13 +9,16 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
  
+import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.event.IncidenteEvent;
 import com.callsos.backend.domain.model.Denuncia;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.CrearIncidentePort;
 import com.callsos.backend.domain.port.out.DenunciaRepositoryPort;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
  
@@ -43,13 +46,16 @@ public class CrearIncidenteService implements CrearIncidentePort {
     private final IncidenteRepositoryPort incidenteRepository;
     private final DenuncianteRepositoryPort denuncianteRepository;
     private final DenunciaRepositoryPort denunciaRepository;
+    private final EventPublisherPort eventPublisher;
  
     public CrearIncidenteService(IncidenteRepositoryPort incidenteRepository,
                                  DenuncianteRepositoryPort denuncianteRepository,
-                                 DenunciaRepositoryPort denunciaRepository) {
+                                 DenunciaRepositoryPort denunciaRepository,
+                                 EventPublisherPort eventPublisher) {
         this.incidenteRepository  = incidenteRepository;
         this.denuncianteRepository = denuncianteRepository;
         this.denunciaRepository   = denunciaRepository;
+        this.eventPublisher       = eventPublisher;
     }
     
     @Override
@@ -85,6 +91,11 @@ public class CrearIncidenteService implements CrearIncidentePort {
         );
         denunciaRepository.guardar(denuncia);
         incidente.setDenuncia(denuncia);
+
+        // Épica 2 (fix P4): antes CrearIncidenteService no publicaba
+        // ningún evento — el CREADO nunca quedaba auditado.
+        eventPublisher.publicar(new IncidenteEvent(
+            incidente.getId(), denunciante.getId(), null, EstadoIncidente.CREADO));
 
         return incidente;
     }

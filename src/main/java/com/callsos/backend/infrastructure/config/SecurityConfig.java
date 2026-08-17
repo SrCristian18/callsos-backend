@@ -119,8 +119,15 @@ public class SecurityConfig {
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
 
                 // ── Auditoría ─────────────────────────────────────────────
+                // Épica 2 (fix P7): se amplía a los 4 roles porque el
+                // filtrado real por actor (denunciante dueño / agente
+                // asignado / CAI propio / comando global) ahora vive
+                // dentro de AuditoriaController, no acá. Antes esta regla
+                // dejaba fuera a DENUNCIANTE y AGENTE por completo, cuando
+                // el requisito es que SÍ puedan ver la auditoría de SUS
+                // PROPIOS incidentes.
                 .requestMatchers(HttpMethod.GET, "/api/v1/auditoria/**")
-                    .hasAnyRole("OPERADOR_CAI", "COMANDO")
+                    .hasAnyRole("DENUNCIANTE", "AGENTE", "OPERADOR_CAI", "COMANDO")
 
                 // ── Incidentes: comodín genérico {id} — SIEMPRE AL FINAL ──
                 // Debe ir después de todas las rutas de colección de arriba,

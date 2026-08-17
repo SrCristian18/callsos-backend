@@ -47,12 +47,15 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort {
                 "Solo se puede evaluar un incidente EN_ATENCION. Estado actual: "
                 + incidente.getEstado());
  
+        EstadoIncidente estadoAnterior = incidente.getEstado();
+
         incidente.finalizar();
         incidenteRepository.guardar(incidente);
  
         eventPublisher.publicar(new IncidenteFinalizadoEvent(
             incidenteId,
             incidente.getDenunciante().getId(),
+            estadoAnterior,
             EstadoIncidente.FINALIZADO
         ));
     }

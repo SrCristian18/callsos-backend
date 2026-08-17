@@ -1,9 +1,11 @@
 package com.callsos.backend.application.service;
 
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.event.TipoIncidenteActualizadoEvent;
 import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.ActualizarTipoIncidentePort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 
 /**
@@ -20,15 +22,20 @@ import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  *      si la transición es válida.
  *   4. Persistir.
  *
- * Épica 1 — no publica todavía eventos de auditoría ni de propagación en
- * tiempo real (eso corresponde a Épicas 2 y 5, según lo acordado).
+ * Épica 2 — ahora sí publica TipoIncidenteActualizadoEvent, capturado por
+ * AuditoriaEventListener para dejar trazabilidad (valor anterior/nuevo)
+ * del cambio de tipo. La propagación en tiempo real vía WebSocket es
+ * responsabilidad de Épica 5, que reutilizará el mismo evento.
  */
 public class ActualizarTipoIncidenteService implements ActualizarTipoIncidentePort {
 
     private final IncidenteRepositoryPort incidenteRepository;
+    private final EventPublisherPort eventPublisher;
 
-    public ActualizarTipoIncidenteService(IncidenteRepositoryPort incidenteRepository) {
+    public ActualizarTipoIncidenteService(IncidenteRepositoryPort incidenteRepository,
+                                          EventPublisherPort eventPublisher) {
         this.incidenteRepository = incidenteRepository;
+        this.eventPublisher      = eventPublisher;
     }
 
     @Override
@@ -44,8 +51,13 @@ public class ActualizarTipoIncidenteService implements ActualizarTipoIncidentePo
                 "El denunciante autenticado no es el dueño de este incidente.");
         }
 
+        TipoIncidente tipoAnterior = incidente.getTipo();
+
         incidente.cambiarTipo(nuevoTipo);
 
         incidenteRepository.guardar(incidente);
+
+        eventPublisher.publicar(new TipoIncidenteActualizadoEvent(
+            incidenteId, actorId, incidente.getEstado(), tipoAnterior, nuevoTipo));
     }
 }

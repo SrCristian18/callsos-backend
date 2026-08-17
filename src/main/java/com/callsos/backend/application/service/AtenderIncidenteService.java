@@ -9,8 +9,11 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.event.IncidenteEvent;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.AtenderIncidentePort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  
 /**
@@ -25,9 +28,12 @@ import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 public class AtenderIncidenteService implements AtenderIncidentePort {
  
     private final IncidenteRepositoryPort incidenteRepository;
+    private final EventPublisherPort eventPublisher;
  
-    public AtenderIncidenteService(IncidenteRepositoryPort incidenteRepository) {
+    public AtenderIncidenteService(IncidenteRepositoryPort incidenteRepository,
+                                   EventPublisherPort eventPublisher) {
         this.incidenteRepository = incidenteRepository;
+        this.eventPublisher      = eventPublisher;
     }
  
     @Override
@@ -38,9 +44,16 @@ public class AtenderIncidenteService implements AtenderIncidentePort {
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
  
+        EstadoIncidente estadoAnterior = incidente.getEstado();
+
         // Usa el método semántico del agregado — él conoce la transición válida
         incidente.iniciarAtencion();
  
         incidenteRepository.guardar(incidente);
+
+        // Épica 2 (fix P4): antes esta transición no quedaba auditada.
+        eventPublisher.publicar(new IncidenteEvent(
+            incidenteId, incidente.getDenunciante().getId(),
+            estadoAnterior, EstadoIncidente.EN_ATENCION));
     }
 }

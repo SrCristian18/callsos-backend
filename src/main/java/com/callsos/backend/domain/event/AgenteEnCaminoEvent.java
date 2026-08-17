@@ -25,8 +25,8 @@ public class AgenteEnCaminoEvent extends IncidenteEvent{
     private final String agenteId;
  
     public AgenteEnCaminoEvent(String incidenteId, String denuncianteId,
-                               String agenteId) {
-        super(incidenteId, denuncianteId, EstadoIncidente.AGENTE_EN_CAMINO);
+                               EstadoIncidente estadoAnterior, String agenteId) {
+        super(incidenteId, denuncianteId, estadoAnterior, EstadoIncidente.AGENTE_EN_CAMINO);
         this.agenteId = agenteId;
     }
  

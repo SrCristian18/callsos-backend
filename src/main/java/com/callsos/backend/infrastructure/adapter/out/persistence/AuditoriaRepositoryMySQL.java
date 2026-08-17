@@ -33,8 +33,9 @@ public class AuditoriaRepositoryMySQL implements AuditoriaRepositoryPort{
             """
             INSERT INTO auditoria_incidente
               (incidente_id, estado_anterior, estado_nuevo,
-               actor_id, actor_rol, timestamp, detalle)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+               actor_id, actor_rol, timestamp, detalle,
+               campo, valor_anterior_generico, valor_nuevo_generico)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             auditoria.getIncidenteId(),
             auditoria.getEstadoAnterior() != null
@@ -43,7 +44,10 @@ public class AuditoriaRepositoryMySQL implements AuditoriaRepositoryPort{
             auditoria.getActorId(),
             auditoria.getActorRol(),
             auditoria.getTimestamp(),
-            auditoria.getDetalle()
+            auditoria.getDetalle(),
+            auditoria.getCampo(),
+            auditoria.getValorAnteriorGenerico(),
+            auditoria.getValorNuevoGenerico()
         );
     }
  
@@ -52,7 +56,8 @@ public class AuditoriaRepositoryMySQL implements AuditoriaRepositoryPort{
         return jdbc.query(
             """
             SELECT incidente_id, estado_anterior, estado_nuevo,
-                   actor_id, actor_rol, timestamp, detalle
+                   actor_id, actor_rol, timestamp, detalle,
+                   campo, valor_anterior_generico, valor_nuevo_generico
             FROM auditoria_incidente
             WHERE incidente_id = ?
             ORDER BY timestamp ASC
@@ -64,7 +69,10 @@ public class AuditoriaRepositoryMySQL implements AuditoriaRepositoryPort{
                 EstadoIncidente.valueOf(rs.getString("estado_nuevo")),
                 rs.getString("actor_id"),
                 rs.getString("actor_rol"),
-                rs.getString("detalle")
+                rs.getString("detalle"),
+                rs.getString("campo"),
+                rs.getString("valor_anterior_generico"),
+                rs.getString("valor_nuevo_generico")
             ),
             incidenteId
         );
