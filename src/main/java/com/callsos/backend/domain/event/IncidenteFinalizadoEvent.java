@@ -18,7 +18,7 @@ import com.callsos.backend.domain.enums.EstadoIncidente;
 public class IncidenteFinalizadoEvent extends IncidenteEvent{
     
     public IncidenteFinalizadoEvent(String incidenteId, String denuncianteId,
-                                    EstadoIncidente estado) {
-        super(incidenteId, denuncianteId, estado);
+                                    EstadoIncidente estadoAnterior, EstadoIncidente estado) {
+        super(incidenteId, denuncianteId, estadoAnterior, estado);
     }
 }

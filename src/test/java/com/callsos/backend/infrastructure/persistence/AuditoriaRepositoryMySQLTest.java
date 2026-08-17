@@ -117,4 +117,70 @@ class AuditoriaRepositoryMySQLTest {
         assertEquals(1, historial004.size());
         assertEquals("Evento incidente 004", historial004.get(0).getDetalle());
     }
+
+    // ── Épica 2: cambio de campo genérico (columnas nuevas) ─────────────────
+
+    @Test
+    @DisplayName("un cambio de campo genérico (tipo) se persiste y reconstituye con campo/valor_*")
+    void registraYReconstituyeCambioGenerico() {
+        AuditoriaIncidente cambioTipo = AuditoriaIncidente.deCambioGenerico(
+            "i-audit-006", EstadoIncidente.CREADO,
+            "den-test-001", "DENUNCIANTE",
+            "Tipo actualizado: ROBOS_O_ASALTOS → RIÑAS_O_PELEAS",
+            "tipo", "ROBOS_O_ASALTOS", "RIÑAS_O_PELEAS");
+
+        repository.registrar(cambioTipo);
+
+        List<AuditoriaIncidente> historial = repository.buscarPorIncidente("i-audit-006");
+
+        assertEquals(1, historial.size());
+        AuditoriaIncidente persistido = historial.get(0);
+        assertNull(persistido.getEstadoAnterior(),
+            "Un cambio de campo genérico no representa una transición de estado");
+        assertEquals(EstadoIncidente.CREADO, persistido.getEstadoNuevo());
+        assertEquals("tipo", persistido.getCampo());
+        assertEquals("ROBOS_O_ASALTOS", persistido.getValorAnteriorGenerico());
+        assertEquals("RIÑAS_O_PELEAS", persistido.getValorNuevoGenerico());
+        assertTrue(persistido.esCambioGenerico());
+    }
+
+    @Test
+    @DisplayName("un cambio de estado normal deja campo/valor_*_generico en NULL")
+    void cambioDeEstadoDejaColumnasGenericasNulas() {
+        repository.registrar(new AuditoriaIncidente(
+            "i-audit-007", EstadoIncidente.CREADO, EstadoIncidente.DERIVADO_A_CAI,
+            "usr-comando-001", "COMANDO", "Derivado"));
+
+        AuditoriaIncidente persistido = repository.buscarPorIncidente("i-audit-007").get(0);
+
+        assertNull(persistido.getCampo());
+        assertNull(persistido.getValorAnteriorGenerico());
+        assertNull(persistido.getValorNuevoGenerico());
+        assertFalse(persistido.esCambioGenerico());
+    }
+
+    @Test
+    @DisplayName("el historial de un incidente mezcla cronológicamente transiciones de estado y cambios de tipo")
+    void mezclaTransicionesYCambiosDeTipoEnOrden() {
+        repository.registrar(new AuditoriaIncidente(
+            "i-audit-008", null, EstadoIncidente.CREADO,
+            "den-test-001", "DENUNCIANTE", "Paso 1: creado"));
+        repository.registrar(AuditoriaIncidente.deCambioGenerico(
+            "i-audit-008", EstadoIncidente.CREADO,
+            "den-test-001", "DENUNCIANTE", "Paso 2: tipo actualizado",
+            "tipo", "ROBOS_O_ASALTOS", "RIÑAS_O_PELEAS"));
+        repository.registrar(new AuditoriaIncidente(
+            "i-audit-008", EstadoIncidente.CREADO, EstadoIncidente.DERIVADO_A_CAI,
+            "usr-comando-001", "COMANDO", "Paso 3: derivado"));
+
+        List<AuditoriaIncidente> historial = repository.buscarPorIncidente("i-audit-008");
+
+        assertEquals(3, historial.size());
+        assertEquals("Paso 1: creado", historial.get(0).getDetalle());
+        assertFalse(historial.get(0).esCambioGenerico());
+        assertEquals("Paso 2: tipo actualizado", historial.get(1).getDetalle());
+        assertTrue(historial.get(1).esCambioGenerico());
+        assertEquals("Paso 3: derivado", historial.get(2).getDetalle());
+        assertFalse(historial.get(2).esCambioGenerico());
+    }
 }

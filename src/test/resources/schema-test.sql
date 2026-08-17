@@ -89,14 +89,17 @@ CREATE TABLE IF NOT EXISTS ubicaciones_agente (
 );
 
 CREATE TABLE IF NOT EXISTS auditoria_incidente (
-    id              BIGINT AUTO_INCREMENT,
-    incidente_id    VARCHAR(36)  NOT NULL,
-    estado_anterior VARCHAR(30),
-    estado_nuevo    VARCHAR(30)  NOT NULL,
-    actor_id        VARCHAR(36),
-    actor_rol       VARCHAR(20),
-    timestamp       TIMESTAMP    NOT NULL DEFAULT NOW(),
-    detalle         VARCHAR(255),
+    id                      BIGINT AUTO_INCREMENT,
+    incidente_id            VARCHAR(36)  NOT NULL,
+    estado_anterior         VARCHAR(30),
+    estado_nuevo            VARCHAR(30)  NOT NULL,
+    actor_id                VARCHAR(36),
+    actor_rol               VARCHAR(20),
+    timestamp               TIMESTAMP    NOT NULL DEFAULT NOW(),
+    detalle                 VARCHAR(255),
+    campo                   VARCHAR(50),
+    valor_anterior_generico VARCHAR(100),
+    valor_nuevo_generico    VARCHAR(100),
     PRIMARY KEY (id)
 );
 

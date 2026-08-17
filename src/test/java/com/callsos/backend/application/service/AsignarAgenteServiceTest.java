@@ -10,6 +10,7 @@ package com.callsos.backend.application.service;
  */
 
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.event.IncidenteEvent;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Denuncia;
 import com.callsos.backend.domain.model.Denunciante;
@@ -17,12 +18,14 @@ import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
  
@@ -40,6 +43,7 @@ public class AsignarAgenteServiceTest {
     @Mock IncidenteRepositoryPort incidenteRepo;
     @Mock AgenteRepositoryPort agenteRepo;
     @Mock AsignacionRepositoryPort asignacionRepo;
+    @Mock EventPublisherPort eventPublisher;
  
     private AsignarAgenteService service;
  
@@ -49,7 +53,7 @@ public class AsignarAgenteServiceTest {
  
     @BeforeEach
     void setUp() {
-        service = new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo);
+        service = new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo, eventPublisher);
     }
  
     @Test
@@ -71,6 +75,27 @@ public class AsignarAgenteServiceTest {
         verify(asignacionRepo, times(1)).guardar(any());
         verify(incidenteRepo, times(1)).guardar(incidente);
         verify(agenteRepo, never()).actualizarEstado(any());
+    }
+
+    @Test
+    @DisplayName("Publica IncidenteEvent con estadoAnterior real y estadoNuevo AGENTE_ASIGNADO (Épica 2)")
+    void publicaEventoConEstadoAnteriorReal() {
+        Incidente incidente = incidenteConCAIyDenuncia();
+        Agente agente = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
+
+        when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(agenteRepo.obtenerDisponiblesPorUnidad("cai-001")).thenReturn(List.of(agente));
+        when(agenteRepo.intentarReservar("ag-001")).thenReturn(true);
+
+        service.ejecutar("i-001");
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        IncidenteEvent evento = captor.getValue();
+        assertEquals("i-001", evento.getIncidenteId());
+        assertEquals("d-001", evento.getDenuncianteId());
+        assertEquals(com.callsos.backend.domain.enums.EstadoIncidente.DERIVADO_A_CAI, evento.getEstadoAnterior());
+        assertEquals(com.callsos.backend.domain.enums.EstadoIncidente.AGENTE_ASIGNADO, evento.getEstadoNuevo());
     }
 
     @Test
@@ -113,6 +138,7 @@ public class AsignarAgenteServiceTest {
 
         verify(asignacionRepo, never()).guardar(any());
         verify(incidenteRepo, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
  
     @Test
@@ -123,7 +149,7 @@ public class AsignarAgenteServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.ejecutar("no-existe"));
  
-        verifyNoInteractions(agenteRepo, asignacionRepo);
+        verifyNoInteractions(agenteRepo, asignacionRepo, eventPublisher);
     }
  
     @Test
@@ -136,7 +162,7 @@ public class AsignarAgenteServiceTest {
         assertThrows(IllegalStateException.class,
             () -> service.ejecutar("i-001"));
  
-        verifyNoInteractions(agenteRepo, asignacionRepo);
+        verifyNoInteractions(agenteRepo, asignacionRepo, eventPublisher);
     }
  
     @Test
@@ -150,6 +176,7 @@ public class AsignarAgenteServiceTest {
             () -> service.ejecutar("i-001"));
  
         verify(asignacionRepo, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
  
     @Test
@@ -171,7 +198,7 @@ public class AsignarAgenteServiceTest {
         // ANTES de tocar agenteRepository — precisamente para no reservar
         // (y dejar atascado en OCUPADO) un agente cuando el incidente de
         // todas formas iba a fallar por esta otra razón.
-        verifyNoInteractions(agenteRepo, asignacionRepo);
+        verifyNoInteractions(agenteRepo, asignacionRepo, eventPublisher);
     }
  
     // ── Helper ─────────────────────────────────────────────────────────────

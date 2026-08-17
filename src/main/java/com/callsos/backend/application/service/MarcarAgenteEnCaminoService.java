@@ -9,6 +9,7 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.event.AgenteEnCaminoEvent;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Asignacion;
@@ -48,6 +49,8 @@ public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
  
+        EstadoIncidente estadoAnterior = incidente.getEstado();
+
         incidente.marcarAgenteEnCamino();
         incidenteRepository.guardar(incidente);
  
@@ -61,6 +64,7 @@ public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
         eventPublisher.publicar(new AgenteEnCaminoEvent(
             incidenteId,
             incidente.getDenunciante().getId(),
+            estadoAnterior,
             agenteId
         ));
     }

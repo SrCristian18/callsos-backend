@@ -4,13 +4,16 @@ import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Denunciante;
+import com.callsos.backend.domain.event.TipoIncidenteActualizadoEvent;
 import com.callsos.backend.domain.model.Incidente;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,10 +23,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ActualizarTipoIncidenteService — Épica 1")
+@DisplayName("ActualizarTipoIncidenteService — Épica 1 + 2")
 class ActualizarTipoIncidenteServiceTest {
 
     @Mock IncidenteRepositoryPort incidenteRepository;
+    @Mock EventPublisherPort eventPublisher;
 
     ActualizarTipoIncidenteService service;
 
@@ -35,7 +39,7 @@ class ActualizarTipoIncidenteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ActualizarTipoIncidenteService(incidenteRepository);
+        service = new ActualizarTipoIncidenteService(incidenteRepository, eventPublisher);
     }
 
     private Incidente incidenteEnEstado(EstadoIncidente estado) {
@@ -59,6 +63,28 @@ class ActualizarTipoIncidenteServiceTest {
     }
 
     @Test
+    @DisplayName("publica TipoIncidenteActualizadoEvent con tipoAnterior/tipoNuevo (Épica 2)")
+    void publicaEventoDeCambioDeTipo() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.CREADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", "den-001", TipoIncidente.RIÑAS_O_PELEAS);
+
+        ArgumentCaptor<TipoIncidenteActualizadoEvent> captor =
+            ArgumentCaptor.forClass(TipoIncidenteActualizadoEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+
+        TipoIncidenteActualizadoEvent evento = captor.getValue();
+        assertEquals("i-001", evento.getIncidenteId());
+        assertEquals("den-001", evento.getDenuncianteId());
+        assertEquals(TipoIncidente.ROBOS_O_ASALTOS, evento.getTipoAnterior());
+        assertEquals(TipoIncidente.RIÑAS_O_PELEAS, evento.getTipoNuevo());
+        // No es una transición de estado: estadoAnterior == estadoNuevo (ambos el vigente)
+        assertEquals(EstadoIncidente.CREADO, evento.getEstadoAnterior());
+        assertEquals(EstadoIncidente.CREADO, evento.getEstadoNuevo());
+    }
+
+    @Test
     @DisplayName("permite el cambio en cualquier estado activo (AGENTE_EN_CAMINO)")
     void cambioExitosoConAgenteEnCamino() {
         Incidente incidente = incidenteEnEstado(EstadoIncidente.AGENTE_EN_CAMINO);
@@ -78,6 +104,7 @@ class ActualizarTipoIncidenteServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.ejecutar("no-existe", "den-001", TipoIncidente.RIÑAS_O_PELEAS));
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -92,6 +119,7 @@ class ActualizarTipoIncidenteServiceTest {
         assertEquals(TipoIncidente.ROBOS_O_ASALTOS, incidente.getTipo(),
             "El tipo no debe cambiar si el actor no es el dueño");
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -103,6 +131,7 @@ class ActualizarTipoIncidenteServiceTest {
         assertThrows(IllegalStateException.class,
             () -> service.ejecutar("i-001", "den-001", TipoIncidente.RIÑAS_O_PELEAS));
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -114,6 +143,7 @@ class ActualizarTipoIncidenteServiceTest {
         assertThrows(IllegalStateException.class,
             () -> service.ejecutar("i-001", "den-001", TipoIncidente.RIÑAS_O_PELEAS));
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -125,6 +155,7 @@ class ActualizarTipoIncidenteServiceTest {
         assertThrows(IllegalStateException.class,
             () -> service.ejecutar("i-001", "den-001", TipoIncidente.ROBOS_O_ASALTOS));
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -139,5 +170,6 @@ class ActualizarTipoIncidenteServiceTest {
         assertThrows(AccesoDenegadoException.class,
             () -> service.ejecutar("i-001", otroDenunciante.getId(), TipoIncidente.RIÑAS_O_PELEAS));
         verify(incidenteRepository, never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 }

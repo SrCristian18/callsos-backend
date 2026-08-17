@@ -9,17 +9,21 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
+import com.callsos.backend.domain.event.IncidenteEvent;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
 import com.callsos.backend.domain.port.out.DenunciaRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
  
@@ -41,6 +45,7 @@ class CrearIncidenteServiceTest {
      @Mock IncidenteRepositoryPort incidenteRepo;
     @Mock DenuncianteRepositoryPort denuncianteRepo;
     @Mock DenunciaRepositoryPort denunciaRepo;
+    @Mock EventPublisherPort eventPublisher;
  
     private CrearIncidenteService service;
  
@@ -50,7 +55,7 @@ class CrearIncidenteServiceTest {
  
     @BeforeEach
     void setUp() {
-        service = new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo);
+        service = new CrearIncidenteService(incidenteRepo, denuncianteRepo, denunciaRepo, eventPublisher);
     }
  
     @Test
@@ -75,6 +80,25 @@ class CrearIncidenteServiceTest {
     }
  
     @Test
+    @DisplayName("Publica IncidenteEvent(CREADO) con estadoAnterior null (Épica 2, fix P4)")
+    void publicaEventoDeCreacion() {
+        when(denuncianteRepo.buscarPorId("d-001"))
+            .thenReturn(Optional.of(denunciante));
+ 
+        Incidente resultado = service.ejecutar(
+            "d-001", TipoIncidente.ROBOS_O_ASALTOS, "Robo en la calle", ubicacion);
+ 
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+ 
+        IncidenteEvent evento = captor.getValue();
+        assertEquals(resultado.getId(), evento.getIncidenteId());
+        assertEquals("d-001", evento.getDenuncianteId());
+        assertNull(evento.getEstadoAnterior());
+        assertEquals(EstadoIncidente.CREADO, evento.getEstadoNuevo());
+    }
+ 
+    @Test
     @DisplayName("Lanza excepción si el denunciante no existe")
     void lanzaSiDenuncianteNoExiste() {
         when(denuncianteRepo.buscarPorId("no-existe"))
@@ -86,5 +110,6 @@ class CrearIncidenteServiceTest {
  
         verify(incidenteRepo, never()).guardar(any());
         verify(denunciaRepo,  never()).guardar(any());
+        verifyNoInteractions(eventPublisher);
     }
 }

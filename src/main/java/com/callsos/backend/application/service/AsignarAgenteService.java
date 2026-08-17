@@ -9,6 +9,8 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.event.IncidenteEvent;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.model.Denuncia;
@@ -16,6 +18,7 @@ import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.in.AsignarAgentePort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 
@@ -51,13 +54,16 @@ public class AsignarAgenteService implements AsignarAgentePort {
     private final AgenteRepositoryPort agenteRepository;
     private final IncidenteRepositoryPort incidenteRepository;
     private final AsignacionRepositoryPort asignacionRepository;
+    private final EventPublisherPort eventPublisher;
  
     public AsignarAgenteService(AgenteRepositoryPort agenteRepository,
                                 IncidenteRepositoryPort incidenteRepository,
-                                AsignacionRepositoryPort asignacionRepository) {
+                                AsignacionRepositoryPort asignacionRepository,
+                                EventPublisherPort eventPublisher) {
         this.agenteRepository      = agenteRepository;
         this.incidenteRepository   = incidenteRepository;
         this.asignacionRepository  = asignacionRepository;
+        this.eventPublisher        = eventPublisher;
     }
  
     @Override
@@ -123,6 +129,8 @@ public class AsignarAgenteService implements AsignarAgentePort {
             denuncia
         );
  
+        EstadoIncidente estadoAnterior = incidente.getEstado();
+
         incidente.agregarAsignacion(asignacion);
         incidente.marcarAgenteAsignado();
  
@@ -131,5 +139,10 @@ public class AsignarAgenteService implements AsignarAgentePort {
         // (ni conviene) un actualizarEstado() adicional acá.
         asignacionRepository.guardar(asignacion);
         incidenteRepository.guardar(incidente);
+
+        // Épica 2 (fix P4): antes esta transición no quedaba auditada.
+        eventPublisher.publicar(new IncidenteEvent(
+            incidenteId, incidente.getDenunciante().getId(),
+            estadoAnterior, EstadoIncidente.AGENTE_ASIGNADO));
     }
 }
