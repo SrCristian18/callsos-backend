@@ -6,6 +6,7 @@ import com.callsos.backend.domain.port.in.SimularRecorridoAgentePort;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.RutaPort;
+import com.callsos.backend.domain.service.CalculadoraDistancia;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
 import org.slf4j.Logger;
@@ -111,20 +112,9 @@ public class SimularRecorridoAgenteService implements SimularRecorridoAgentePort
     private double distanciaTotal(List<Ubicacion> ruta) {
         double total = 0;
         for (int i = 1; i < ruta.size(); i++) {
-            total += distanciaMetros(ruta.get(i - 1), ruta.get(i));
+            total += CalculadoraDistancia.distanciaMetros(ruta.get(i - 1), ruta.get(i));
         }
         return total;
-    }
-
-    private double distanciaMetros(Ubicacion a, Ubicacion b) {
-        double r = 6_371_000; // radio terrestre en metros
-        double dLat = Math.toRadians(b.getLatitud() - a.getLatitud());
-        double dLon = Math.toRadians(b.getLongitud() - a.getLongitud());
-        double lat1 = Math.toRadians(a.getLatitud());
-        double lat2 = Math.toRadians(b.getLatitud());
-        double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-            + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return 2 * r * Math.asin(Math.sqrt(h));
     }
 
     private List<Ubicacion> remuestrear(List<Ubicacion> ruta, int numPuntos) {
@@ -132,7 +122,7 @@ public class SimularRecorridoAgenteService implements SimularRecorridoAgentePort
  
         double[] acumulado = new double[ruta.size()];
         for (int i = 1; i < ruta.size(); i++) {
-            acumulado[i] = acumulado[i - 1] + distanciaMetros(ruta.get(i - 1), ruta.get(i));
+            acumulado[i] = acumulado[i - 1] + CalculadoraDistancia.distanciaMetros(ruta.get(i - 1), ruta.get(i));
         }
         double distanciaTotal = acumulado[ruta.size() - 1];
  

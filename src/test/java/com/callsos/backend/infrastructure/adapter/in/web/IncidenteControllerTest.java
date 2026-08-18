@@ -75,6 +75,7 @@ class IncidenteControllerTest {
     // de esta clase con "ApplicationContext failure threshold exceeded".
     @MockBean private SimularRecorridoAgentePort simularRecorrido;
     @MockBean private ActualizarTipoIncidentePort actualizarTipo;
+    @MockBean private ConsultarEtaPort consultarEta;
 
     private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
         return new UsernamePasswordAuthenticationToken(
@@ -426,6 +427,85 @@ class IncidenteControllerTest {
                 .with(authentication(actor("den-001", "DENUNCIANTE")))
                 .contentType("application/json")
                 .content(body))
+            .andExpect(status().isNotFound());
+    }
+
+    // ── ETA — Épica 4 ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /{id}/eta con rol DENUNCIANTE (dueño) y datos disponibles retorna 200 con minutos y categoría")
+    void etaComoDenuncianteDuenoConDatos() throws Exception {
+        com.callsos.backend.domain.model.EtaInfo eta =
+            com.callsos.backend.domain.model.EtaInfo.calcular(556.0, 36.0); // ~1 min, MENOS_DE_1_KM
+        when(consultarEta.consultar("i-001", "den-001")).thenReturn(eta);
+
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.minutosEstimados").value(eta.getMinutosEstimados()))
+            .andExpect(jsonPath("$.categoriaDistancia").value("MENOS_DE_1_KM"));
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta sin datos disponibles (agente aún no reporta posición) retorna 200 con valores null, no error")
+    void etaSinDatosDisponibles() throws Exception {
+        when(consultarEta.consultar("i-001", "den-001"))
+            .thenReturn(com.callsos.backend.domain.model.EtaInfo.sinDatos());
+
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.minutosEstimados").doesNotExist())
+            .andExpect(jsonPath("$.categoriaDistancia").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta con rol AGENTE retorna 403 (solo DENUNCIANTE puede consultar su ETA)")
+    void etaProhibidaParaAgente() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(consultarEta);
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta con rol COMANDO retorna 403 (solo DENUNCIANTE, ver SecurityConfig)")
+    void etaProhibidaParaComando() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(consultarEta);
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta sin autenticación retorna 401")
+    void etaSinAutenticacion() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta sobre incidente de otro denunciante retorna 403 (ownership)")
+    void etaIncidenteAjenoRetorna403() throws Exception {
+        doThrow(new AccesoDenegadoException(
+                "El denunciante autenticado no es el dueño de este incidente."))
+            .when(consultarEta).consultar("i-001", "den-999");
+
+        mockMvc.perform(get("/api/v1/incidentes/i-001/eta")
+                .with(authentication(actor("den-999", "DENUNCIANTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /{id}/eta sobre incidente inexistente retorna 404")
+    void etaIncidenteInexistenteRetorna404() throws Exception {
+        doThrow(new IllegalArgumentException("Incidente no encontrado: no-existe"))
+            .when(consultarEta).consultar("no-existe", "den-001");
+
+        mockMvc.perform(get("/api/v1/incidentes/no-existe/eta")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
             .andExpect(status().isNotFound());
     }
 }

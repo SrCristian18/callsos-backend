@@ -111,6 +111,12 @@ public class SecurityConfig {
                 // regla solo garantiza el rol correcto.
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/tipo")
                     .hasRole("DENUNCIANTE")
+                // Épica 4 — ETA: solo el DENUNCIANTE puede consultarlo (vía
+                // REST, complementario al broadcast WS). El ownership (que
+                // sea el DUEÑO del incidente) se valida dentro de
+                // CalcularEtaService, no aquí — mismo patrón que /tipo.
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/*/eta")
+                    .hasRole("DENUNCIANTE")
 
                 // ── Reportes ──────────────────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/api/v1/reportes/hallazgos")

@@ -228,8 +228,28 @@ public class ApplicationConfig {
     @Bean
     public PublicarUbicacionAgentePort publicarUbicacionAgentePort(
         UbicacionAgenteRepositoryPort ubicacionAgenteRepo,
-        SimpMessagingTemplate messagingTemplate){
-            return new PublicarUbicacionAgenteService(ubicacionAgenteRepo, messagingTemplate);
+        SimpMessagingTemplate messagingTemplate,
+        IncidenteRepositoryPort incidenteRepo,
+        @Value("${eta.velocidad-media-kmh:30}") double velocidadMediaKmh){
+            return new PublicarUbicacionAgenteService(
+                ubicacionAgenteRepo, messagingTemplate, incidenteRepo, velocidadMediaKmh);
+        }
+
+    /**
+     * Épica 4 — ETA seguro para el denunciante (apoyado en el modelo de
+     * topics seguro de Épica 3). Expuesto por REST vía
+     * IncidenteController.eta(); el broadcast periódico por WS vive
+     * dentro de PublicarUbicacionAgenteService (misma velocidad media
+     * configurada, para que ambos caminos den el mismo número).
+     */
+    @Bean
+    public ConsultarEtaPort consultarEtaPort(
+        IncidenteRepositoryPort incidenteRepo,
+        AsignacionRepositoryPort asignacionRepo,
+        UbicacionAgenteRepositoryPort ubicacionAgenteRepo,
+        @Value("${eta.velocidad-media-kmh:30}") double velocidadMediaKmh) {
+            return new CalcularEtaService(
+                incidenteRepo, asignacionRepo, ubicacionAgenteRepo, velocidadMediaKmh);
         }
 
     /**
