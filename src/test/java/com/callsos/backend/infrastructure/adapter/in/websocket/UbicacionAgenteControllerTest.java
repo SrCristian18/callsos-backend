@@ -162,7 +162,7 @@ class UbicacionAgenteControllerTest {
     }
 
     @Test
-    @DisplayName("solicitarUltimaPosicion publica la última posición si existe")
+    @DisplayName("solicitarUltimaPosicion publica la última posición en /topic/agente/{agenteId}/ubicacion (Épica 3)")
     void solicitarUltimaPosicionExistente() {
         UbicacionAgente ultima = new UbicacionAgente(
             "ag-001", "i-001", new Ubicacion(10.4, -75.5));
@@ -170,8 +170,12 @@ class UbicacionAgenteControllerTest {
 
         controller.solicitarUltimaPosicion("i-001", new UltimaUbicacionRequest("ag-001"));
 
+        // Épica 3: antes publicaba a "/topic/incidente/i-001/ubicacion"
+        // (nombrado por incidente); ahora se nombra por agenteId, igual
+        // que PublicarUbicacionAgenteService — la autorización real de
+        // quién puede suscribirse vive en StompAuthChannelInterceptor.
         verify(messagingTemplate).convertAndSend(
-            eq("/topic/incidente/i-001/ubicacion"), any(UbicacionResponse.class));
+            eq("/topic/agente/ag-001/ubicacion"), any(UbicacionResponse.class));
     }
 
     @Test

@@ -21,6 +21,7 @@ import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
  
 /**
  * Adaptador de salida: implementa AgenteRepositoryPort con JDBC + MySQL.
@@ -126,5 +127,20 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             }
             return agente;
         }
+    }
+
+    /**
+     * Épica 3: resuelve la unidad policial de un agente — necesario para
+     * que VerificarAccesoTrackingService autorice a un OPERADOR_CAI a ver
+     * el tracking solo de SUS agentes.
+     */
+    @Override
+    public Optional<String> buscarUnidadDeAgente(String agenteId) {
+        List<String> resultado = jdbc.query(
+            "SELECT unidad_policial_id FROM agentes WHERE id = ?",
+            (rs, rowNum) -> rs.getString("unidad_policial_id"),
+            agenteId
+        );
+        return resultado.isEmpty() ? Optional.empty() : Optional.of(resultado.get(0));
     }
 }

@@ -12,6 +12,7 @@ package com.callsos.backend.domain.port.out;
 import com.callsos.backend.domain.model.Agente;
  
 import java.util.List;
+import java.util.Optional;
  
 /**
  * Puerto de salida: contrato de persistencia para Agente.
@@ -63,4 +64,17 @@ public interface AgenteRepositoryPort {
      * mantiene como campo propio — solo existe como columna FK en BD.
      */
     void guardar(Agente agente, String unidadPolicialId);
+
+    /**
+     * Resuelve a qué unidad policial (CAI) pertenece un agente.
+     *
+     * Épica 3: necesario para que VerificarAccesoTrackingService pueda
+     * decidir si un OPERADOR_CAI tiene autorización para ver el tracking
+     * de un agente concreto — el dominio Agente no carga esta relación
+     * en memoria (solo existe como columna FK en la tabla `agentes`, ver
+     * 01_schema.sql), así que hay que consultarla explícitamente.
+     *
+     * @return Optional.empty() si el agente no existe.
+     */
+    Optional<String> buscarUnidadDeAgente(String agenteId);
 }

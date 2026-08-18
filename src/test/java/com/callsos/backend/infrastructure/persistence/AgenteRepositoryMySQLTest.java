@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
  
 import java.util.List;
+import java.util.Optional;
  
 import static org.junit.jupiter.api.Assertions.*;
  
@@ -71,5 +72,24 @@ class AgenteRepositoryMySQLTest {
         boolean sigueDisponible = tras.stream()
             .anyMatch(a -> a.getId().equals(agente.getId()));
         assertFalse(sigueDisponible);
+    }
+
+    // ── Épica 3 (fix P6) ─────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("buscarUnidadDeAgente retorna la unidad policial del agente")
+    void buscarUnidadDeAgenteExistente() {
+        Optional<String> unidad = repository.buscarUnidadDeAgente("ag-test-001");
+
+        assertTrue(unidad.isPresent());
+        assertEquals("cai-test-001", unidad.get());
+    }
+
+    @Test
+    @DisplayName("buscarUnidadDeAgente retorna vacío si el agente no existe")
+    void buscarUnidadDeAgenteInexistente() {
+        Optional<String> unidad = repository.buscarUnidadDeAgente("ag-no-existe");
+
+        assertTrue(unidad.isEmpty());
     }
 }

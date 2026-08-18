@@ -12,6 +12,7 @@ package com.callsos.backend.infrastructure.adapter.in.web;
 import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.AuditoriaIncidente;
 import com.callsos.backend.domain.model.Incidente;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.AuditoriaRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +42,20 @@ import java.util.List;
  * SecurityConfig ahora permite los 4 roles en esta ruta — el filtrado
  * real de "es TU incidente" vive acá, no en la config de Spring Security
  * (mismo patrón que ActualizarTipoIncidenteService).
+ *
+ * FIX (post-Épica 2, detectado en revisión antes de Épica 3): el chequeo
+ * de AGENTE originalmente usaba incidente.getAsignaciones() — una lista
+ * que SOLO se llena en memoria vía agregarAsignacion() durante el mismo
+ * request en que se crea la asignación. IncidenteRepositoryMySQL.buscarPorId()
+ * NUNCA reconstituye esa lista desde la tabla `asignaciones` al leer de
+ * BD (no hace ese JOIN) — así que en un request real y separado (como
+ * este, GET /auditoria/incidente/{id}), la lista siempre llegaba vacía y
+ * el AGENTE dueño de la asignación recibía 403 igual que uno ajeno. El
+ * test unitario no lo detectó porque construye el Incidente en memoria y
+ * llama agregarAsignacion() antes de mockear el repositorio, ocultando el
+ * problema. Se corrige consultando AsignacionRepositoryPort.buscarPorIncidente()
+ * — la misma fuente de verdad (consulta real a la tabla `asignaciones`)
+ * que ya usa MarcarAgenteEnCaminoService.
  */
 @RestController
 @RequestMapping("/api/v1/auditoria")
@@ -48,11 +63,14 @@ public class AuditoriaController {
     
     private final AuditoriaRepositoryPort auditoriaRepository;
     private final IncidenteRepositoryPort incidenteRepository;
+    private final AsignacionRepositoryPort asignacionRepository;
  
     public AuditoriaController(AuditoriaRepositoryPort auditoriaRepository,
-                               IncidenteRepositoryPort incidenteRepository) {
+                               IncidenteRepositoryPort incidenteRepository,
+                               AsignacionRepositoryPort asignacionRepository) {
         this.auditoriaRepository = auditoriaRepository;
         this.incidenteRepository = incidenteRepository;
+        this.asignacionRepository = asignacionRepository;
     }
  
     @GetMapping("/incidente/{id}")
@@ -73,8 +91,10 @@ public class AuditoriaController {
 
             boolean autorizado = switch (rol) {
                 case "DENUNCIANTE" -> incidente.getDenunciante().getId().equals(actorId);
-                case "AGENTE" -> incidente.getAsignaciones().stream()
-                    .anyMatch(a -> a.getAgente().getId().equals(actorId));
+                case "AGENTE" -> asignacionRepository.buscarPorIncidente(id)
+                    .map(a -> a.getAgente().getId())
+                    .filter(agenteId -> agenteId.equals(actorId))
+                    .isPresent();
                 case "OPERADOR_CAI" -> incidente.getUnidadPolicial() != null
                     && incidente.getUnidadPolicial().getId().equals(actorId);
                 default -> false;

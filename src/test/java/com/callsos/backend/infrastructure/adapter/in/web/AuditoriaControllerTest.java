@@ -12,6 +12,7 @@ import com.callsos.backend.domain.model.AuditoriaIncidente;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.UnidadPolicial;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.AuditoriaRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
@@ -55,6 +56,7 @@ class AuditoriaControllerTest {
     @MockBean private JwtService jwtService;
     @MockBean private AuditoriaRepositoryPort auditoriaRepository;
     @MockBean private IncidenteRepositoryPort incidenteRepository;
+    @MockBean private AsignacionRepositoryPort asignacionRepository;
 
     private final Ubicacion ubicacion = new Ubicacion(10.39, -75.51);
     private final Denunciante denuncianteDueno = new Denunciante(
@@ -108,9 +110,18 @@ class AuditoriaControllerTest {
         com.callsos.backend.domain.model.Denuncia denuncia = new com.callsos.backend.domain.model.Denuncia(
             "den-audit-001", TipoIncidente.ROBOS_O_ASALTOS, "desc", ubicacion, denuncianteDueno, incidente);
         incidente.setDenuncia(denuncia);
-        incidente.agregarAsignacion(new Asignacion("asig-001", agente, denuncia));
+        Asignacion asignacion = new Asignacion("asig-001", agente, denuncia);
 
         when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        // FIX: la autorización de AGENTE consulta AsignacionRepositoryPort
+        // (la tabla real `asignaciones`), NO incidente.getAsignaciones()
+        // — esa lista solo existe en memoria dentro del mismo request en
+        // que se creó la asignación y jamás se reconstituye al leer un
+        // Incidente desde la base de datos real (ver nota en el
+        // controller). Mockear incidente.getAsignaciones() aquí habría
+        // ocultado ese bug, exactamente como pasó en la versión anterior
+        // de este test.
+        when(asignacionRepository.buscarPorIncidente("i-001")).thenReturn(Optional.of(asignacion));
         when(auditoriaRepository.buscarPorIncidente("i-001")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/auditoria/incidente/i-001")
@@ -122,9 +133,27 @@ class AuditoriaControllerTest {
     @DisplayName("AGENTE no asignado al incidente recibe 403")
     void agenteNoAsignadoRechazado() throws Exception {
         when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidenteBase()));
+        when(asignacionRepository.buscarPorIncidente("i-001")).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/v1/auditoria/incidente/i-001")
                 .with(authentication(actor("ag-999", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("AGENTE distinto al de la asignación real del incidente recibe 403")
+    void agenteDeOtraAsignacionRechazado() throws Exception {
+        Incidente incidente = incidenteBase();
+        Agente otroAgente = new Agente("ag-002", "Ana", "Dir", ubicacion, "301");
+        com.callsos.backend.domain.model.Denuncia denuncia = new com.callsos.backend.domain.model.Denuncia(
+            "den-audit-002", TipoIncidente.ROBOS_O_ASALTOS, "desc", ubicacion, denuncianteDueno, incidente);
+        Asignacion asignacionDeOtroAgente = new Asignacion("asig-002", otroAgente, denuncia);
+
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(asignacionRepository.buscarPorIncidente("i-001")).thenReturn(Optional.of(asignacionDeOtroAgente));
+
+        mockMvc.perform(get("/api/v1/auditoria/incidente/i-001")
+                .with(authentication(actor("ag-001", "AGENTE"))))
             .andExpect(status().isForbidden());
     }
 

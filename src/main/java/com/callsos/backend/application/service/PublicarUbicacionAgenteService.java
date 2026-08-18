@@ -25,8 +25,24 @@ public class PublicarUbicacionAgenteService implements PublicarUbicacionAgentePo
  
         repositorio.guardar(ua);
  
+        // Épica 3 (fix P6 — la regla de seguridad más crítica del sistema):
+        // ANTES se publicaba a "/topic/incidente/{incidenteId}/ubicacion".
+        // Ese topic estaba pensado como "el canal del incidente", pero en
+        // la práctica cualquier cliente autenticado (sin importar el rol)
+        // podía suscribirse a él manualmente conociendo solo el
+        // incidenteId — incluido el propio DENUNCIANTE, exactamente lo que
+        // la Regla 4 del análisis técnico prohíbe explícitamente: el
+        // denunciante NUNCA puede ver la ubicación GPS del agente.
+        //
+        // AHORA se publica a "/topic/agente/{agenteId}/ubicacion" — un
+        // topic por AGENTE, no por incidente. La autorización real de
+        // quién puede suscribirse (el propio agente, un CAI dueño de ese
+        // agente, o COMANDO — nunca el denunciante) se aplica en
+        // StompAuthChannelInterceptor sobre el comando SUBSCRIBE, que es
+        // donde debe vivir: "no basta con que Flutter no muestre el mapa,
+        // el backend debe impedir la suscripción no autorizada".
         messagingTemplate.convertAndSend(
-            "/topic/incidente/" + incidenteId + "/ubicacion",
+            "/topic/agente/" + agenteId + "/ubicacion",
             new UbicacionPublicada(
                 ubicacion.getLatitud(),
                 ubicacion.getLongitud(),

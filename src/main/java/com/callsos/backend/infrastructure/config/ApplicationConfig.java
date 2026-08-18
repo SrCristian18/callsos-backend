@@ -233,6 +233,18 @@ public class ApplicationConfig {
         }
 
     /**
+     * Épica 3 (fix P6) — resuelve la matriz de autorización del tracking
+     * GPS (AGENTE propio / CAI de su unidad / COMANDO global / DENUNCIANTE
+     * nunca). Lo usa StompAuthChannelInterceptor para autorizar SUBSCRIBE
+     * a /topic/agente/{agenteId}/ubicacion.
+     */
+    @Bean
+    public VerificarAccesoTrackingPort verificarAccesoTrackingPort(
+        AgenteRepositoryPort agenteRepo) {
+            return new VerificarAccesoTrackingService(agenteRepo);
+        }
+
+    /**
      * Scheduler dedicado para las tareas periódicas de simulación de
      * recorrido. Pool pequeño: cada piloto solo corre unas pocas
      * simulaciones concurrentes a la vez.

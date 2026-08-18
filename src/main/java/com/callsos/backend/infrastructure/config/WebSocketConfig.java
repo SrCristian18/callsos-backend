@@ -24,13 +24,23 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  * sobre WebSocket que define conceptos de destino (topic/queue) y frames
  * (SEND, SUBSCRIBE, MESSAGE). Spring lo implementa de forma nativa.
  *
- * Topología de mensajes para el tracking del agente:
+ * Topología de mensajes para el tracking del agente (Épica 3):
  *
  *   App Flutter (agente)  →  SEND /app/ubicacion/{incidenteId}
  *                         →  UbicacionAgenteController procesa
  *                         →  SimpMessagingTemplate.convertAndSend(
- *                               "/topic/incidente/{id}/ubicacion")
- *                         →  App Flutter (denunciante) suscrita al topic
+ *                               "/topic/agente/{agenteId}/ubicacion")
+ *                         →  Suscritos autorizados: el propio AGENTE,
+ *                            OPERADOR_CAI de su unidad, COMANDO — NUNCA
+ *                            el DENUNCIANTE (ver StompAuthChannelInterceptor
+ *                            y VerificarAccesoTrackingService).
+ *
+ * Antes de la Épica 3 el topic se nombraba por incidenteId
+ * ("/topic/incidente/{id}/ubicacion") y no había ninguna autorización
+ * sobre SUBSCRIBE — cualquier cliente autenticado, sin importar el rol,
+ * podía suscribirse solo con conocer el incidenteId. Eso permitía al
+ * DENUNCIANTE ver la ubicación GPS real del agente, justo lo que la
+ * Regla 4 del análisis técnico prohíbe explícitamente.
  *
  * Endpoints:
  *   /ws          → conexión WebSocket con SockJS fallback
