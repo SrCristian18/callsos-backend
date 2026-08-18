@@ -43,3 +43,12 @@ simulacion:
   osrm:
     url: ${SIMULACION_OSRM_URL:https://router.project-osrm.org}
     timeout-ms: ${SIMULACION_OSRM_TIMEOUT_MS:4000}
+
+# ── ETA (Épica 4) ────────────────────────────────────────────────────────────
+# Velocidad media asumida para estimar el tiempo de llegada del agente al
+# denunciante — no es la velocidad real (esa solo se conoce con GPS +
+# tráfico en tiempo real, fuera de alcance de esta épica). 30 km/h es un
+# valor conservador para tránsito urbano de Cartagena; ajustable por env
+# sin redeploy si la calibración piloto sugiere otro valor.
+eta:
+  velocidad-media-kmh: ${ETA_VELOCIDAD_MEDIA_KMH:30}

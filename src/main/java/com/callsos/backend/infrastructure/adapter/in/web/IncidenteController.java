@@ -1,12 +1,14 @@
 package com.callsos.backend.infrastructure.adapter.in.web;
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.model.EtaInfo;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.ActualizarTipoIncidenteRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CambiarEstadoRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CrearIncidenteRequest;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.EtaResponse;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.IncidenteResponse;
 import com.callsos.backend.infrastructure.adapter.in.web.mapper.IncidenteMapper;
 import jakarta.validation.Valid;
@@ -56,6 +58,7 @@ public class IncidenteController {
     private final EvaluarIncidentePort evaluarIncidente;
     private final SimularRecorridoAgentePort simularRecorrido;
     private final ActualizarTipoIncidentePort actualizarTipo;
+    private final ConsultarEtaPort consultarEta;
 
     @Value("${SIMULACION_HABILITADA:false}")
     private boolean simulacionHabilitada;
@@ -75,7 +78,8 @@ public class IncidenteController {
             AtenderIncidentePort atenderIncidente,
             EvaluarIncidentePort evaluarIncidente,
             SimularRecorridoAgentePort simularRecorrido,
-            ActualizarTipoIncidentePort actualizarTipo) {
+            ActualizarTipoIncidentePort actualizarTipo,
+            ConsultarEtaPort consultarEta) {
         this.crearIncidente        = crearIncidente;
         this.cambiarEstado         = cambiarEstado;
         this.consultarEstado       = consultarEstado;
@@ -91,6 +95,7 @@ public class IncidenteController {
         this.evaluarIncidente      = evaluarIncidente;
         this.simularRecorrido      = simularRecorrido;
         this.actualizarTipo        = actualizarTipo;
+        this.consultarEta          = consultarEta;
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
@@ -268,5 +273,28 @@ public class IncidenteController {
         String actorId = authentication.getName();
         actualizarTipo.ejecutar(id, actorId, request.getNuevoTipo());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * GET /{id}/eta — tiempo estimado de llegada del agente para el
+     * denunciante dueño del incidente (Épica 4).
+     *
+     * Complementa el broadcast automático por WebSocket
+     * (/topic/incidente/{id}/eta, ver PublicarUbicacionAgenteService):
+     * este endpoint cubre el caso de reconexión — la app pide el valor
+     * vigente sin esperar la próxima actualización GPS del agente.
+     *
+     * Nunca expone lat/lon — ver EtaInfo. Devuelve minutosEstimados y
+     * categoriaDistancia en null (200, no error) cuando el incidente
+     * aún no está en AGENTE_EN_CAMINO o el agente no ha reportado
+     * posición todavía.
+     */
+    @GetMapping("/{id}/eta")
+    public ResponseEntity<EtaResponse> eta(
+            @PathVariable String id, Authentication authentication) {
+        String actorId = authentication.getName();
+        EtaInfo eta = consultarEta.consultar(id, actorId);
+        return ResponseEntity.ok(
+            new EtaResponse(eta.getMinutosEstimados(), eta.getCategoriaDistancia()));
     }
 }
