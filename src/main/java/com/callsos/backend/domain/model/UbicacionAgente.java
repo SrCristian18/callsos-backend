@@ -21,9 +21,12 @@ import java.time.LocalDateTime;
  *
  * Uso en tiempo real:
  *   1. App del agente envía lat/lon vía WebSocket
- *   2. UbicacionAgenteController crea esta entidad
+ *   2. UbicacionAgenteController delega en PublicarUbicacionAgentePort
  *   3. Se persiste en BD para historial
- *   4. Se publica a /topic/incidente/{id}/ubicacion para el denunciante
+ *   4. Se publica a /topic/agente/{agenteId}/ubicacion — visible SOLO
+ *      para el propio agente, su CAI, o COMANDO (Épica 3, fix P6). El
+ *      denunciante NUNCA está entre los suscriptores autorizados de
+ *      este topic — ver StompAuthChannelInterceptor.
  */
 public class UbicacionAgente {
     

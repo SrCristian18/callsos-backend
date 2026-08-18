@@ -66,7 +66,7 @@ class PublicarUbicacionAgenteServiceTest {
     }
 
     @Test
-    @DisplayName("Publica en /topic/incidente/{id}/ubicacion con lat/lon de la Ubicacion recibida")
+    @DisplayName("Publica en /topic/agente/{agenteId}/ubicacion con lat/lon de la Ubicacion recibida (Épica 3)")
     void publicaEnElTopicoCorrecto() {
         Ubicacion ubicacion = new Ubicacion(10.4, -75.5);
 
@@ -75,7 +75,7 @@ class PublicarUbicacionAgenteServiceTest {
         ArgumentCaptor<PublicarUbicacionAgenteService.UbicacionPublicada> captor =
             ArgumentCaptor.forClass(PublicarUbicacionAgenteService.UbicacionPublicada.class);
         verify(messagingTemplate).convertAndSend(
-            eq("/topic/incidente/i-001/ubicacion"), captor.capture());
+            eq("/topic/agente/ag-001/ubicacion"), captor.capture());
 
         assertEquals(10.4, captor.getValue().latitud());
         assertEquals(-75.5, captor.getValue().longitud());
@@ -96,7 +96,7 @@ class PublicarUbicacionAgenteServiceTest {
 
         verify(repositorio).guardar(guardadaCaptor.capture());
         verify(messagingTemplate).convertAndSend(
-            eq("/topic/incidente/i-001/ubicacion"), publicadaCaptor.capture());
+            eq("/topic/agente/ag-001/ubicacion"), publicadaCaptor.capture());
 
         assertEquals(
             guardadaCaptor.getValue().getTimestamp().toString(),
@@ -104,12 +104,31 @@ class PublicarUbicacionAgenteServiceTest {
     }
 
     @Test
-    @DisplayName("Distintos incidentes publican en topics distintos")
-    void topicVariaSegunIncidenteId() {
+    @DisplayName("Épica 3: el topic se nombra por agenteId, NO por incidenteId — "
+        + "el mismo agente en incidentes distintos publica en el MISMO topic")
+    void topicSeNombraPorAgenteIdNoPorIncidenteId() {
         service.publicar("ag-001", "i-777", new Ubicacion(10.4, -75.5));
+        service.publicar("ag-001", "i-888", new Ubicacion(11.0, -76.0));
+
+        // Dos incidentes distintos, mismo agente -> mismo topic. Antes de
+        // la Épica 3 esto habría sido "/topic/incidente/i-777/ubicacion" y
+        // "/topic/incidente/i-888/ubicacion" (dos topics distintos); ahora
+        // el topic depende del AGENTE, no del incidente.
+        verify(messagingTemplate, times(2)).convertAndSend(
+            eq("/topic/agente/ag-001/ubicacion"),
+            any(PublicarUbicacionAgenteService.UbicacionPublicada.class));
+    }
+
+    @Test
+    @DisplayName("Distintos agentes publican en topics distintos")
+    void topicVariaSegunAgenteId() {
+        service.publicar("ag-002", "i-777", new Ubicacion(10.4, -75.5));
 
         verify(messagingTemplate).convertAndSend(
-            eq("/topic/incidente/i-777/ubicacion"),
+            eq("/topic/agente/ag-002/ubicacion"),
+            any(PublicarUbicacionAgenteService.UbicacionPublicada.class));
+        verify(messagingTemplate, never()).convertAndSend(
+            eq("/topic/agente/ag-001/ubicacion"),
             any(PublicarUbicacionAgenteService.UbicacionPublicada.class));
     }
 }

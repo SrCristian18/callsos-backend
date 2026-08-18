@@ -29,7 +29,7 @@ import java.security.Principal;
 
 /**
  * Adaptador de entrada WebSocket: recibe posiciones GPS del agente
- * y las transmite en tiempo real al denunciante suscrito.
+ * y las transmite en tiempo real a quien esté autorizado a verlas.
  *
  * ┌─────────────────────────────────────────────────────────────┐
  * │  App Flutter (AGENTE)                                       │
@@ -40,15 +40,24 @@ import java.security.Principal;
  *                          ▼
  * ┌─────────────────────────────────────────────────────────────┐
  * │  UbicacionAgenteController                                  │
- * │    1. Construye UbicacionAgente                             │
- * │    2. Persiste en BD (historial)                            │
- * │    3. Publica en /topic/incidente/{id}/ubicacion            │
+ * │    1. Valida rol AGENTE + usa el agenteId del JWT            │
+ * │    2. Delega en PublicarUbicacionAgentePort                 │
+ * │       (persiste + publica en /topic/agente/{agenteId}/...)  │
  * └────────────────────────┬────────────────────────────────────┘
  *                          │ SimpMessagingTemplate
  *                          ▼
  * ┌─────────────────────────────────────────────────────────────┐
- *  App Flutter (DENUNCIANTE) suscrita a /topic/incidente/{id}/ubicacion
- *    ← recibe { latitud, longitud, timestamp }
+ *  Suscritos a /topic/agente/{agenteId}/ubicacion:
+ *    el propio AGENTE, OPERADOR_CAI de su unidad, COMANDO.
+ *    ← reciben { latitud, longitud, timestamp }
+ *
+ *  Épica 3 (fix P6): el DENUNCIANTE NUNCA puede suscribirse a este
+ *  topic — StompAuthChannelInterceptor rechaza el SUBSCRIBE si el rol
+ *  no está autorizado (VerificarAccesoTrackingService). Antes de esta
+ *  épica, el topic era "/topic/incidente/{id}/ubicacion" — nombrado por
+ *  incidente, no por agente — y cualquier cliente autenticado (sin
+ *  importar el rol) podía suscribirse solo con conocer el incidenteId,
+ *  incluido el propio denunciante dueño del incidente.
  * └─────────────────────────────────────────────────────────────┘
  */
 @Controller
@@ -69,14 +78,19 @@ public class UbicacionAgenteController {
     }
 
     /**
-     * Recibe la posición GPS del agente y la retransmite al denunciante.
+     * Recibe la posición GPS del agente y la retransmite a quien esté
+     * autorizado a verla (ver StompAuthChannelInterceptor).
      *
      * Si el incidente tiene una simulación de recorrido ACTIVA (modo prueba),
      * esta posición real se descarta: el backend ya está reproduciendo el
      * trayecto simulado y no queremos que ambas fuentes compitan por el
      * mismo topic STOMP.
      * 
-     * @param incidenteId  ID del incidente — parte del destino STOMP
+     * @param incidenteId  ID del incidente — sigue siendo parte del destino
+     *                     de este SEND (el agente reporta su posición EN
+     *                     EL CONTEXTO de un incidente concreto), pero el
+     *                     topic de SALIDA (broadcast) ya no se nombra por
+     *                     incidenteId — ver PublicarUbicacionAgentePort.
      * @param payload      Posición enviada por la app del agente
      */
     @MessageMapping("/ubicacion/{incidenteId}")
@@ -131,32 +145,20 @@ public class UbicacionAgenteController {
         // a nombre de OTRO agente con solo cambiar el campo en el JSON.
         publicarUbicacion.publicar(agenteIdAutenticado, incidenteId, ubicacion);
     }
-    /* Descontinuado
-
-        UbicacionAgente ua = new UbicacionAgente(
-            agenteIdAutenticado,
-            incidenteId,
-            ubicacion
-        );
- 
-        // Persistir en historial
-        repositorio.guardar(ua);
- 
-        // Transmitir en tiempo real al denunciante suscrito
-        messagingTemplate.convertAndSend(
-            "/topic/incidente/" + incidenteId + "/ubicacion",
-            new UbicacionResponse(
-                payload.latitud(),
-                payload.longitud(),
-                ua.getTimestamp().toString()
-            )
-        );
-    }
-    */
 
     /**
-     * Endpoint para que el denunciante recupere la última posición
-     * conocida al reconectar (ej: al reabrir la app).
+     * Recupera la última posición conocida de un agente para un incidente
+     * (ej: al reabrir la app y reconectar el WebSocket).
+     *
+     * Épica 3: el destino de publicación ya no se nombra por incidenteId
+     * ("/topic/incidente/{id}/ubicacion") sino por agenteId
+     * ("/topic/agente/{agenteId}/ubicacion") — igual que
+     * PublicarUbicacionAgenteService. La protección real de "quién puede
+     * ver esto" es la autorización de SUBSCRIBE en
+     * StompAuthChannelInterceptor: el DENUNCIANTE nunca logra suscribirse
+     * a ese topic, así que aunque este SEND siga siendo invocable por
+     * cualquiera, no hay fuga — nadie no autorizado puede estar del otro
+     * lado recibiendo el broadcast.
      */
     @MessageMapping("/ubicacion/{incidenteId}/ultima")
     public void solicitarUltimaPosicion(
@@ -165,7 +167,7 @@ public class UbicacionAgenteController {
  
         repositorio.ultimaPosicion(request.agenteId(), incidenteId)
             .ifPresent(ua -> messagingTemplate.convertAndSend(
-                "/topic/incidente/" + incidenteId + "/ubicacion",
+                "/topic/agente/" + request.agenteId() + "/ubicacion",
                 new UbicacionResponse(
                     ua.getUbicacion().getLatitud(),
                     ua.getUbicacion().getLongitud(),
