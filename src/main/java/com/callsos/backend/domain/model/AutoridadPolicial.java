@@ -35,6 +35,17 @@ public abstract class AutoridadPolicial {
     protected String direccion;
     protected Ubicacion ubicacion;
     protected String telefono;
+
+    /**
+     * Épica 5 — token FCM para notificaciones push a Agente/UnidadPolicial
+     * (CAI). Mismo propósito que Denunciante.tokenFcm, pero vive acá (no
+     * en las subclases) porque tanto Agente como UnidadPolicial lo
+     * necesitan y ambas heredan de esta clase — evita duplicar el campo.
+     * Nullable/mutable (no en el constructor) porque el token se registra
+     * DESPUÉS de que el agente/CAI ya existe en BD, igual que en
+     * Denunciante — ver RegistrarTokenFcmAgenteService/RegistrarTokenFcmUnidadService.
+     */
+    protected String tokenFcm;
     
     /** Lista de componentes hijo (Composite). */
     private final List<AutoridadPolicial> subordinados;
@@ -82,6 +93,21 @@ public abstract class AutoridadPolicial {
     public String getDireccion()   { return direccion; }
     public Ubicacion getUbicacion(){ return ubicacion; }
     public String getTelefono()    { return telefono; }
+    public String getTokenFcm()    { return tokenFcm; }
+
+    /**
+     * Se setea después de construir el objeto (normalmente al mapear la
+     * fila de BD) — igual razón que Agente.estado: el token no es parte
+     * del "constructor de negocio" (crear un Agente/CAI no requiere un
+     * token todavía), se adjunta cuando el dispositivo lo registra.
+     */
+    public void setTokenFcm(String tokenFcm) {
+        this.tokenFcm = tokenFcm;
+    }
+
+    public boolean tieneTokenFcm() {
+        return tokenFcm != null && !tokenFcm.isBlank();
+    }
  
     /**
      * Operación polimórfica del Composite.

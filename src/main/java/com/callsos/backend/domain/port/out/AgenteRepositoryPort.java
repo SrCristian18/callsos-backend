@@ -77,4 +77,12 @@ public interface AgenteRepositoryPort {
      * @return Optional.empty() si el agente no existe.
      */
     Optional<String> buscarUnidadDeAgente(String agenteId);
+
+    /**
+     * Épica 5 — registra/actualiza el token FCM del agente para
+     * notificaciones push (ej. "el denunciante cambió el tipo del
+     * incidente"). Mismo propósito y forma que
+     * DenuncianteRepositoryPort.actualizarTokenFcm().
+     */
+    void actualizarTokenFcm(String agenteId, String tokenFcm);
 }

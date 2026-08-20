@@ -157,7 +157,8 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
                u.direccion AS u_direccion,
                u.latitud   AS u_latitud,
                u.longitud  AS u_longitud,
-               u.telefono  AS u_telefono
+               u.telefono  AS u_telefono,
+               u.token_fcm AS u_token_fcm
         FROM incidentes i
         JOIN denunciantes d ON d.id = i.denunciante_id
         LEFT JOIN unidades_policiales u ON u.id = i.unidad_policial_id
@@ -185,13 +186,20 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
         incidente.reconstituirEstado(EstadoIncidente.valueOf(rs.getString("estado")));
         String unidadId = rs.getString("unidad_policial_id");
         if (unidadId != null) {
-            incidente.reconstituirUnidad(new UnidadPolicial(
+            UnidadPolicial unidad = new UnidadPolicial(
                 unidadId,
                 rs.getString("u_nombre"),
                 rs.getString("u_direccion"),
                 new Ubicacion(rs.getDouble("u_latitud"), rs.getDouble("u_longitud")),
                 rs.getString("u_telefono")
-            ));
+            );
+            // Épica 5: el token FCM del CAI viaja con el incidente porque
+            // NotificacionEventListener necesita notificar a la unidad
+            // policial cuando el denunciante cambia el tipo, y ya tiene
+            // el Incidente completo cargado en memoria — evita una
+            // consulta extra a UnidadPolicialRepositoryPort.
+            unidad.setTokenFcm(rs.getString("u_token_fcm"));
+            incidente.reconstituirUnidad(unidad);
         }
         // NOTA: la Denuncia NO se carga aquí — se carga en cargarDenuncia()
         // DESPUÉS de que este ResultSet esté cerrado, para evitar el error

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS unidades_policiales (
     latitud     DOUBLE        NOT NULL,
     longitud    DOUBLE        NOT NULL,
     telefono    VARCHAR(20),
+    token_fcm   VARCHAR(255),
     PRIMARY KEY (id)
 );
 
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS agentes (
     telefono           VARCHAR(20),
     estado             VARCHAR(20)  NOT NULL DEFAULT 'DISPONIBLE',
     unidad_policial_id VARCHAR(36)  NOT NULL,
+    token_fcm          VARCHAR(255),
     PRIMARY KEY (id)
 );
 

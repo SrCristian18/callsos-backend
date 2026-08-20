@@ -180,6 +180,20 @@ public class ApplicationConfig {
         return new com.callsos.backend.application.service.RegistrarTokenFcmService(denuncianteRepo);
     }
 
+    /** Épica 5 — token FCM del agente. */
+    @Bean
+    public com.callsos.backend.domain.port.in.RegistrarTokenFcmAgentePort registrarTokenFcmAgentePort(
+            AgenteRepositoryPort agenteRepo) {
+        return new com.callsos.backend.application.service.RegistrarTokenFcmAgenteService(agenteRepo);
+    }
+
+    /** Épica 5 — token FCM del CAI. */
+    @Bean
+    public com.callsos.backend.domain.port.in.RegistrarTokenFcmUnidadPort registrarTokenFcmUnidadPort(
+            UnidadPolicialRepositoryPort unidadPolicialRepo) {
+        return new com.callsos.backend.application.service.RegistrarTokenFcmUnidadService(unidadPolicialRepo);
+    }
+
     // ── Consultas (Fase E) ─────────────────────────────────────────────────
 
     @Bean
