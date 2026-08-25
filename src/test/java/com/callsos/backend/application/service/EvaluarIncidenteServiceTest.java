@@ -4,6 +4,7 @@
  */
 package com.callsos.backend.application.service;
 
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.event.IncidenteFinalizadoEvent;
@@ -31,6 +32,7 @@ class EvaluarIncidenteServiceTest {
 
     @Mock IncidenteRepositoryPort incidenteRepository;
     @Mock EventPublisherPort eventPublisher;
+    @Mock AgenteLiberador agenteLiberador;
 
     EvaluarIncidenteService service;
 
@@ -39,7 +41,7 @@ class EvaluarIncidenteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EvaluarIncidenteService(incidenteRepository, eventPublisher);
+        service = new EvaluarIncidenteService(incidenteRepository, eventPublisher, agenteLiberador);
     }
 
     private Incidente incidenteEnEstado(EstadoIncidente estado) {
@@ -72,7 +74,23 @@ class EvaluarIncidenteServiceTest {
     }
 
     @Test
-    @DisplayName("estado distinto de EN_ATENCION lanza IllegalStateException, no guarda ni publica")
+    @DisplayName("FIX agente OCUPADO para siempre: libera al agente asignado tras finalizar")
+    void liberaAlAgenteAsignado() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.EN_ATENCION);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001");
+
+        // El orden importa: liberar DESPUÉS de persistir el incidente
+        // finalizado, no antes — evita un estado intermedio inconsistente
+        // si algo fallara entre medio.
+        var inOrder = inOrder(incidenteRepository, agenteLiberador);
+        inOrder.verify(incidenteRepository).guardar(incidente);
+        inOrder.verify(agenteLiberador).liberarSiHayAsignacionActiva("i-001");
+    }
+
+    @Test
+    @DisplayName("estado distinto de EN_ATENCION lanza IllegalStateException, no guarda ni publica ni libera")
     void estadoInvalidoNoPermiteEvaluar() {
         Incidente incidente = incidenteEnEstado(EstadoIncidente.AGENTE_EN_CAMINO);
         when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
@@ -82,6 +100,7 @@ class EvaluarIncidenteServiceTest {
         assertEquals(EstadoIncidente.AGENTE_EN_CAMINO, incidente.getEstado());
         verify(incidenteRepository, never()).guardar(any());
         verifyNoInteractions(eventPublisher);
+        verifyNoInteractions(agenteLiberador);
     }
 
     @Test
@@ -92,5 +111,6 @@ class EvaluarIncidenteServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.ejecutar("no-existe"));
         verify(incidenteRepository, never()).guardar(any());
         verifyNoInteractions(eventPublisher);
+        verifyNoInteractions(agenteLiberador);
     }
 }

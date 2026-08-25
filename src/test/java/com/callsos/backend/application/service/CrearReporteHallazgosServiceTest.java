@@ -9,6 +9,7 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.model.Agente;
@@ -40,6 +41,7 @@ public class CrearReporteHallazgosServiceTest {
     @Mock IncidenteRepositoryPort incidenteRepo;
     @Mock AgenteByIdRepositoryPort agenteRepo;
     @Mock ReporteHallazgosRepositoryPort reporteRepo;
+    @Mock AgenteLiberador agenteLiberador;
  
     private CrearReporteHallazgosService service;
  
@@ -49,7 +51,7 @@ public class CrearReporteHallazgosServiceTest {
  
     @BeforeEach
     void setUp() {
-        service = new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo);
+        service = new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador);
     }
  
     @Test
@@ -71,6 +73,23 @@ public class CrearReporteHallazgosServiceTest {
         verify(reporteRepo).guardar(any(ReporteHallazgos.class));
         verify(incidenteRepo).guardar(incidente);
     }
+
+    @Test
+    @DisplayName("FIX agente OCUPADO para siempre: ESTE es el flujo real que usa la app "
+        + "(ReporteHallazgosView -> POST /reportes/hallazgos), libera al agente tras finalizar")
+    void liberaAlAgenteAsignado() {
+        Incidente incidente = incidenteEnAtencion();
+        Agente agente = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
+
+        when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(agenteRepo.buscarPorId("ag-001")).thenReturn(Optional.of(agente));
+
+        service.ejecutar("i-001", "ag-001", "Situación controlada");
+
+        var inOrder = inOrder(incidenteRepo, agenteLiberador);
+        inOrder.verify(incidenteRepo).guardar(incidente);
+        inOrder.verify(agenteLiberador).liberarSiHayAsignacionActiva("i-001");
+    }
  
     @Test
     @DisplayName("Lanza excepcion si el incidente no esta EN_ATENCION")
@@ -88,6 +107,7 @@ public class CrearReporteHallazgosServiceTest {
  
         verify(reporteRepo, never()).guardar(any());
         verify(incidenteRepo, never()).guardar(any());
+        verifyNoInteractions(agenteLiberador);
     }
  
     @Test
@@ -98,7 +118,7 @@ public class CrearReporteHallazgosServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.ejecutar("no-existe", "ag-001", "desc"));
  
-        verifyNoInteractions(agenteRepo, reporteRepo);
+        verifyNoInteractions(agenteRepo, reporteRepo, agenteLiberador);
     }
  
     @Test
@@ -112,6 +132,7 @@ public class CrearReporteHallazgosServiceTest {
             () -> service.ejecutar("i-001", "no-existe", "desc"));
  
         verify(reporteRepo, never()).guardar(any());
+        verifyNoInteractions(agenteLiberador);
     }
  
     // ── Helper ─────────────────────────────────────────────────────────────

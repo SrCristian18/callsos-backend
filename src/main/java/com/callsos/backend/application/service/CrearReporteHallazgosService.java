@@ -9,6 +9,7 @@ package com.callsos.backend.application.service;
  * @author LENOVO
  */
 
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.ReporteHallazgos;
@@ -27,20 +28,29 @@ import java.util.UUID;
  *   Ambas referencias se validan antes de crear el reporte.
  *
  * Efecto colateral: el incidente transiciona a FINALIZADO.
+ *
+ * ESTE es el flujo que realmente usa la app para finalizar (ver
+ * ReporteHallazgosView — llama directo a POST /reportes/hallazgos y
+ * NUNCA a PATCH /{id}/evaluar). Por eso el fix del agente que queda
+ * OCUPADO para siempre vive acá con la misma prioridad que en
+ * EvaluarIncidenteService — ver el docstring de AgenteLiberador.
  */
 public class CrearReporteHallazgosService implements CrearReporteHallazgosPort {
     
     private final IncidenteRepositoryPort incidenteRepository;
     private final AgenteByIdRepositoryPort agenteRepository;
     private final ReporteHallazgosRepositoryPort reporteRepository;
+    private final AgenteLiberador agenteLiberador;
  
     public CrearReporteHallazgosService(
             IncidenteRepositoryPort incidenteRepository,
             AgenteByIdRepositoryPort agenteRepository,
-            ReporteHallazgosRepositoryPort reporteRepository) {
+            ReporteHallazgosRepositoryPort reporteRepository,
+            AgenteLiberador agenteLiberador) {
         this.incidenteRepository = incidenteRepository;
         this.agenteRepository    = agenteRepository;
         this.reporteRepository   = reporteRepository;
+        this.agenteLiberador     = agenteLiberador;
     }
  
     @Override
@@ -75,6 +85,11 @@ public class CrearReporteHallazgosService implements CrearReporteHallazgosPort {
         incidente.finalizar();
         incidenteRepository.guardar(incidente);
  
+        // FIX: antes de este cambio, este era el punto exacto donde el
+        // agente quedaba OCUPADO en BD para siempre — ver
+        // AgenteLiberador para el detalle completo.
+        agenteLiberador.liberarSiHayAsignacionActiva(incidenteId);
+
         return reporte;
     }
 }

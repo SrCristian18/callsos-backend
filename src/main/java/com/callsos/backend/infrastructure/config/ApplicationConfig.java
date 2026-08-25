@@ -10,6 +10,7 @@ package com.callsos.backend.infrastructure.config;
  */
 
 import com.callsos.backend.application.service.*;
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.port.in.*;
 import com.callsos.backend.domain.port.out.*;
 import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
@@ -115,11 +116,25 @@ public class ApplicationConfig {
         return new AsignarAgenteService(agenteRepo, incidenteRepo, asignacionRepo, eventPublisher);
     }
  
+    /**
+     * Épica 8 (fix del agente que queda OCUPADO para siempre) — ver
+     * AgenteLiberador para el detalle completo del bug que corrige.
+     * Compartido entre CambiarEstadoIncidenteService,
+     * EvaluarIncidenteService y CrearReporteHallazgosService.
+     */
+    @Bean
+    public AgenteLiberador agenteLiberador(
+            AsignacionRepositoryPort asignacionRepo,
+            AgenteRepositoryPort agenteRepo) {
+        return new AgenteLiberador(asignacionRepo, agenteRepo);
+    }
+
     @Bean
     public CambiarEstadoIncidentePort cambiarEstadoIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
-            EventPublisherPort eventPublisher) {
-        return new CambiarEstadoIncidenteService(incidenteRepo, eventPublisher);
+            EventPublisherPort eventPublisher,
+            AgenteLiberador agenteLiberador) {
+        return new CambiarEstadoIncidenteService(incidenteRepo, eventPublisher, agenteLiberador);
     }
  
     @Bean
@@ -138,8 +153,9 @@ public class ApplicationConfig {
     @Bean
     public EvaluarIncidentePort evaluarIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
-            EventPublisherPort eventPublisher) {
-        return new EvaluarIncidenteService(incidenteRepo, eventPublisher);
+            EventPublisherPort eventPublisher,
+            AgenteLiberador agenteLiberador) {
+        return new EvaluarIncidenteService(incidenteRepo, eventPublisher, agenteLiberador);
     }
  
     @Bean
@@ -156,8 +172,9 @@ public class ApplicationConfig {
     public CrearReporteHallazgosPort crearReporteHallazgosPort(
             IncidenteRepositoryPort incidenteRepo,
             AgenteByIdRepositoryPort agenteRepo,
-            ReporteHallazgosRepositoryPort reporteRepo) {
-        return new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo);
+            ReporteHallazgosRepositoryPort reporteRepo,
+            AgenteLiberador agenteLiberador) {
+        return new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador);
     }
  
     @Bean
