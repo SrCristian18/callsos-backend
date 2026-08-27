@@ -151,6 +151,53 @@ class CambiarEstadoIncidenteServiceTest {
     }
 
     @Test
+    @DisplayName("FIX Épica 8 (notificación push rota): CANCELADO publica IncidenteFinalizadoEvent "
+        + "específicamente, no un IncidenteEvent genérico — NotificacionEventListener.onIncidenteFinalizado() "
+        + "está tipado a ese subtipo exacto y antes nunca lo recibía al cancelar")
+    void cancelarPublicaIncidenteFinalizadoEventEspecificamente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.AGENTE_ASIGNADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.CANCELADO);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertInstanceOf(com.callsos.backend.domain.event.IncidenteFinalizadoEvent.class,
+            captor.getValue(),
+            "CANCELADO debe publicar la subclase específica, no el IncidenteEvent genérico");
+    }
+
+    @Test
+    @DisplayName("FINALIZADO también publica IncidenteFinalizadoEvent específicamente")
+    void finalizarPublicaIncidenteFinalizadoEventEspecificamente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.EN_ATENCION);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.FINALIZADO);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertInstanceOf(com.callsos.backend.domain.event.IncidenteFinalizadoEvent.class,
+            captor.getValue());
+    }
+
+    @Test
+    @DisplayName("transición NO terminal (ej. DERIVADO_A_CAI) publica el IncidenteEvent genérico, "
+        + "NO IncidenteFinalizadoEvent — el incidente no concluyó")
+    void transicionNoTerminalPublicaEventoGenerico() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.CREADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.DERIVADO_A_CAI);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertFalse(
+            captor.getValue() instanceof com.callsos.backend.domain.event.IncidenteFinalizadoEvent,
+            "una transición no terminal NO debe publicarse como IncidenteFinalizadoEvent");
+    }
+
+    @Test
     @DisplayName("incidente inexistente lanza IllegalArgumentException y no guarda ni publica")
     void incidenteNoEncontrado() {
         when(incidenteRepository.buscarPorId("no-existe")).thenReturn(Optional.empty());

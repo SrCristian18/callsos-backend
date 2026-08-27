@@ -173,8 +173,9 @@ public class ApplicationConfig {
             IncidenteRepositoryPort incidenteRepo,
             AgenteByIdRepositoryPort agenteRepo,
             ReporteHallazgosRepositoryPort reporteRepo,
-            AgenteLiberador agenteLiberador) {
-        return new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador);
+            AgenteLiberador agenteLiberador,
+            EventPublisherPort eventPublisher) {
+        return new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador, eventPublisher);
     }
  
     @Bean

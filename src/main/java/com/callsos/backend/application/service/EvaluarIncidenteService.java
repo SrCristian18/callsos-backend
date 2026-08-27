@@ -17,6 +17,7 @@ import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
 import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
+import org.springframework.transaction.annotation.Transactional;
  
 /**
  * Caso de uso: el agente finaliza la atención.
@@ -43,6 +44,10 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort {
  
  
     @Override
+    @Transactional
+    // FIX (Épica 8): incidente.guardar() + (vía AgenteLiberador)
+    // asignacion.guardar() + agente.actualizarEstado() eran 3 escrituras
+    // sin protección transaccional.
     public void ejecutar(String incidenteId) {
  
         Incidente incidente = incidenteRepository

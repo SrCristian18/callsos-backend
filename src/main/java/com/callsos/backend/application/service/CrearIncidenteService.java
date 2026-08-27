@@ -21,6 +21,7 @@ import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
 import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
+import org.springframework.transaction.annotation.Transactional;
  
 import java.util.UUID;
  
@@ -59,6 +60,12 @@ public class CrearIncidenteService implements CrearIncidentePort {
     }
     
     @Override
+    @Transactional
+    // FIX (Épica 8, auditoría de regresión): escribe en dos tablas
+    // (denuncias + incidentes) sin protección transaccional — si el
+    // segundo guardar() fallara, quedaría una Denuncia huérfana sin
+    // Incidente asociado. Mismo patrón ya probado en
+    // RegistrarAgenteConInvitacionService.
     public Incidente ejecutar(String denuncianteId, TipoIncidente tipo,
                               String descripcion, Ubicacion ubicacion) {
  

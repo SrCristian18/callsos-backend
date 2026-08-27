@@ -16,8 +16,10 @@ import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.model.ReporteHallazgos;
+import com.callsos.backend.domain.event.IncidenteFinalizadoEvent;
 import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.out.AgenteByIdRepositoryPort;
+import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.ReporteHallazgosRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
  
@@ -42,6 +45,7 @@ public class CrearReporteHallazgosServiceTest {
     @Mock AgenteByIdRepositoryPort agenteRepo;
     @Mock ReporteHallazgosRepositoryPort reporteRepo;
     @Mock AgenteLiberador agenteLiberador;
+    @Mock EventPublisherPort eventPublisher;
  
     private CrearReporteHallazgosService service;
  
@@ -51,7 +55,7 @@ public class CrearReporteHallazgosServiceTest {
  
     @BeforeEach
     void setUp() {
-        service = new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador);
+        service = new CrearReporteHallazgosService(incidenteRepo, agenteRepo, reporteRepo, agenteLiberador, eventPublisher);
     }
  
     @Test
@@ -72,6 +76,29 @@ public class CrearReporteHallazgosServiceTest {
  
         verify(reporteRepo).guardar(any(ReporteHallazgos.class));
         verify(incidenteRepo).guardar(incidente);
+    }
+
+    @Test
+    @DisplayName("FIX Épica 8 (auditoría/notificación rotas): ESTE flujo NO publicaba "
+        + "ningún evento — ahora publica IncidenteFinalizadoEvent(EN_ATENCION -> FINALIZADO)")
+    void publicaIncidenteFinalizadoEvent() {
+        Incidente incidente = incidenteEnAtencion();
+        Agente agente = new Agente("ag-001", "Pedro", "Dir", ubicacion, "300");
+
+        when(incidenteRepo.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+        when(agenteRepo.buscarPorId("ag-001")).thenReturn(Optional.of(agente));
+
+        service.ejecutar("i-001", "ag-001", "Situación controlada");
+
+        ArgumentCaptor<IncidenteFinalizadoEvent> captor =
+            ArgumentCaptor.forClass(IncidenteFinalizadoEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+
+        IncidenteFinalizadoEvent evento = captor.getValue();
+        assertEquals("i-001", evento.getIncidenteId());
+        assertEquals("d-001", evento.getDenuncianteId());
+        assertEquals(EstadoIncidente.EN_ATENCION, evento.getEstadoAnterior());
+        assertEquals(EstadoIncidente.FINALIZADO, evento.getEstadoNuevo());
     }
 
     @Test
@@ -108,6 +135,7 @@ public class CrearReporteHallazgosServiceTest {
         verify(reporteRepo, never()).guardar(any());
         verify(incidenteRepo, never()).guardar(any());
         verifyNoInteractions(agenteLiberador);
+        verifyNoInteractions(eventPublisher);
     }
  
     @Test
@@ -118,7 +146,7 @@ public class CrearReporteHallazgosServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.ejecutar("no-existe", "ag-001", "desc"));
  
-        verifyNoInteractions(agenteRepo, reporteRepo, agenteLiberador);
+        verifyNoInteractions(agenteRepo, reporteRepo, agenteLiberador, eventPublisher);
     }
  
     @Test
@@ -133,6 +161,7 @@ public class CrearReporteHallazgosServiceTest {
  
         verify(reporteRepo, never()).guardar(any());
         verifyNoInteractions(agenteLiberador);
+        verifyNoInteractions(eventPublisher);
     }
  
     // ── Helper ─────────────────────────────────────────────────────────────
