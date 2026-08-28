@@ -4,6 +4,7 @@
  */
 package com.callsos.backend.application.service;
 
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.enums.TipoIncidente;
 import com.callsos.backend.domain.event.IncidenteEvent;
@@ -31,6 +32,7 @@ class CambiarEstadoIncidenteServiceTest {
 
     @Mock IncidenteRepositoryPort incidenteRepository;
     @Mock EventPublisherPort eventPublisher;
+    @Mock AgenteLiberador agenteLiberador;
 
     CambiarEstadoIncidenteService service;
 
@@ -39,7 +41,7 @@ class CambiarEstadoIncidenteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CambiarEstadoIncidenteService(incidenteRepository, eventPublisher);
+        service = new CambiarEstadoIncidenteService(incidenteRepository, eventPublisher, agenteLiberador);
     }
 
     private Incidente incidenteEnEstado(EstadoIncidente estado) {
@@ -60,6 +62,31 @@ class CambiarEstadoIncidenteServiceTest {
 
         assertEquals(EstadoIncidente.DERIVADO_A_CAI, incidente.getEstado());
         verify(incidenteRepository).guardar(incidente);
+    }
+
+    @Test
+    @DisplayName("transición NO terminal (ej. CREADO -> DERIVADO_A_CAI) NO libera al agente "
+        + "— todavía no hay ninguno asignado, y aunque lo hubiera, seguiría trabajando")
+    void transicionNoTerminalNoLiberaAgente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.CREADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.DERIVADO_A_CAI);
+
+        verifyNoInteractions(agenteLiberador);
+    }
+
+    @Test
+    @DisplayName("FIX agente OCUPADO para siempre: cambiar a FINALIZADO libera al agente asignado")
+    void cambiarAFinalizadoLiberaAgente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.EN_ATENCION);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.FINALIZADO);
+
+        var inOrder = inOrder(incidenteRepository, agenteLiberador);
+        inOrder.verify(incidenteRepository).guardar(incidente);
+        inOrder.verify(agenteLiberador).liberarSiHayAsignacionActiva("i-001");
     }
 
     @Test
@@ -97,6 +124,80 @@ class CambiarEstadoIncidenteServiceTest {
     }
 
     @Test
+    @DisplayName("FIX agente OCUPADO para siempre: CANCELADO con agente ya asignado/en camino/en "
+        + "atención también lo libera — no solo el flujo de finalización normal")
+    void cancelarConAgenteAsignadoLiberaAgente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.AGENTE_EN_CAMINO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.CANCELADO);
+
+        verify(agenteLiberador).liberarSiHayAsignacionActiva("i-001");
+    }
+
+    @Test
+    @DisplayName("CANCELADO desde CREADO (sin agente todavía) igual intenta liberar — "
+        + "AgenteLiberador es quien decide que no hay nada que hacer (no-op silencioso)")
+    void cancelarSinAgenteAsignadoTambienLlamaAgenteLiberador() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.CREADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.CANCELADO);
+
+        // Se llama igual — la decisión de "no había nada que liberar" es
+        // responsabilidad de AgenteLiberador (ver su propio test), no de
+        // este servicio duplicando esa lógica.
+        verify(agenteLiberador).liberarSiHayAsignacionActiva("i-001");
+    }
+
+    @Test
+    @DisplayName("FIX Épica 8 (notificación push rota): CANCELADO publica IncidenteFinalizadoEvent "
+        + "específicamente, no un IncidenteEvent genérico — NotificacionEventListener.onIncidenteFinalizado() "
+        + "está tipado a ese subtipo exacto y antes nunca lo recibía al cancelar")
+    void cancelarPublicaIncidenteFinalizadoEventEspecificamente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.AGENTE_ASIGNADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.CANCELADO);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertInstanceOf(com.callsos.backend.domain.event.IncidenteFinalizadoEvent.class,
+            captor.getValue(),
+            "CANCELADO debe publicar la subclase específica, no el IncidenteEvent genérico");
+    }
+
+    @Test
+    @DisplayName("FINALIZADO también publica IncidenteFinalizadoEvent específicamente")
+    void finalizarPublicaIncidenteFinalizadoEventEspecificamente() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.EN_ATENCION);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.FINALIZADO);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertInstanceOf(com.callsos.backend.domain.event.IncidenteFinalizadoEvent.class,
+            captor.getValue());
+    }
+
+    @Test
+    @DisplayName("transición NO terminal (ej. DERIVADO_A_CAI) publica el IncidenteEvent genérico, "
+        + "NO IncidenteFinalizadoEvent — el incidente no concluyó")
+    void transicionNoTerminalPublicaEventoGenerico() {
+        Incidente incidente = incidenteEnEstado(EstadoIncidente.CREADO);
+        when(incidenteRepository.buscarPorId("i-001")).thenReturn(Optional.of(incidente));
+
+        service.ejecutar("i-001", EstadoIncidente.DERIVADO_A_CAI);
+
+        ArgumentCaptor<IncidenteEvent> captor = ArgumentCaptor.forClass(IncidenteEvent.class);
+        verify(eventPublisher).publicar(captor.capture());
+        assertFalse(
+            captor.getValue() instanceof com.callsos.backend.domain.event.IncidenteFinalizadoEvent,
+            "una transición no terminal NO debe publicarse como IncidenteFinalizadoEvent");
+    }
+
+    @Test
     @DisplayName("incidente inexistente lanza IllegalArgumentException y no guarda ni publica")
     void incidenteNoEncontrado() {
         when(incidenteRepository.buscarPorId("no-existe")).thenReturn(Optional.empty());
@@ -105,6 +206,7 @@ class CambiarEstadoIncidenteServiceTest {
             () -> service.ejecutar("no-existe", EstadoIncidente.DERIVADO_A_CAI));
         verify(incidenteRepository, never()).guardar(any());
         verifyNoInteractions(eventPublisher);
+        verifyNoInteractions(agenteLiberador);
     }
 
     @Test
@@ -118,5 +220,6 @@ class CambiarEstadoIncidenteServiceTest {
             () -> service.ejecutar("i-001", EstadoIncidente.EN_ATENCION));
         verify(incidenteRepository, never()).guardar(any());
         verifyNoInteractions(eventPublisher);
+        verifyNoInteractions(agenteLiberador);
     }
 }

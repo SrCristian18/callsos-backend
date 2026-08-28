@@ -9,7 +9,9 @@ package com.callsos.backend.infrastructure.adapter.out.notification;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Denunciante;
+import com.callsos.backend.domain.model.UnidadPolicial;
 import com.callsos.backend.domain.port.out.NotificacionPort;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
@@ -71,6 +73,64 @@ public class NotificacionFirebaseAdapter implements NotificacionPort{
             // no debe romper el flujo principal de negocio
             log.error("[FCM] Error al notificar a {}: {}",
                 denunciante.getNombre(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Épica 5 — mismo patrón que notificarDenunciante(): si el agente no
+     * tiene tokenFcm registrado (ej. nunca llamó a
+     * PATCH /api/v1/agentes/{id}/token), se omite con log, sin excepción.
+     */
+    @Override
+    public void notificarAgente(Agente agente, String mensaje) {
+        if (!agente.tieneTokenFcm()) {
+            log.warn("[FCM] Agente {} sin tokenFcm — notificación omitida",
+                agente.getNombre());
+            return;
+        }
+
+        try {
+            Message fcmMessage = Message.builder()
+                .setNotification(Notification.builder()
+                    .setTitle("Callsos — Actualización")
+                    .setBody(mensaje)
+                    .build())
+                .setToken(agente.getTokenFcm())
+                .build();
+
+            String response = firebaseMessaging.send(fcmMessage);
+            log.info("[FCM] Enviado a agente {}: {}", agente.getNombre(), response);
+
+        } catch (FirebaseMessagingException e) {
+            log.error("[FCM] Error al notificar a agente {}: {}",
+                agente.getNombre(), e.getMessage(), e);
+        }
+    }
+
+    /** Épica 5 — mismo patrón que notificarAgente(), para el CAI. */
+    @Override
+    public void notificarUnidadPolicial(UnidadPolicial unidad, String mensaje) {
+        if (!unidad.tieneTokenFcm()) {
+            log.warn("[FCM] Unidad policial {} sin tokenFcm — notificación omitida",
+                unidad.getNombre());
+            return;
+        }
+
+        try {
+            Message fcmMessage = Message.builder()
+                .setNotification(Notification.builder()
+                    .setTitle("Callsos — Actualización")
+                    .setBody(mensaje)
+                    .build())
+                .setToken(unidad.getTokenFcm())
+                .build();
+
+            String response = firebaseMessaging.send(fcmMessage);
+            log.info("[FCM] Enviado a unidad {}: {}", unidad.getNombre(), response);
+
+        } catch (FirebaseMessagingException e) {
+            log.error("[FCM] Error al notificar a unidad {}: {}",
+                unidad.getNombre(), e.getMessage(), e);
         }
     }
 }

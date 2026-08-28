@@ -9,7 +9,9 @@ package com.callsos.backend.domain.port.out;
  * @author LENOVO
  */
 
+import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Denunciante;
+import com.callsos.backend.domain.model.UnidadPolicial;
  
 /**
  * Puerto de salida: contrato para el servicio de notificaciones.
@@ -27,4 +29,16 @@ public interface NotificacionPort {
      * @param mensaje      Contenido del mensaje
      */
     void notificarDenunciante(Denunciante denunciante, String mensaje);
+
+    /**
+     * Épica 5 — notifica a un agente (ej. el denunciante actualizó el
+     * tipo del incidente que tiene asignado). Antes de esta épica, FCM
+     * solo llegaba al denunciante.
+     */
+    void notificarAgente(Agente agente, String mensaje);
+
+    /**
+     * Épica 5 — notifica al CAI (unidad policial) dueño del incidente.
+     */
+    void notificarUnidadPolicial(UnidadPolicial unidad, String mensaje);
 }

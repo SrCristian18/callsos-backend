@@ -21,6 +21,7 @@ import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -67,6 +68,15 @@ public class AsignarAgenteService implements AsignarAgentePort {
     }
  
     @Override
+    @Transactional
+    // FIX (Épica 8): si incidenteRepository.guardar() fallara DESPUÉS de
+    // intentarReservar() (que ya marcó al agente OCUPADO en su propia
+    // sentencia atómica) y asignacionRepository.guardar(), el agente
+    // quedaría OCUPADO sin ninguna Asignacion real que lo libere después
+    // — la misma clase de "agente atascado" que AgenteLiberador corrige,
+    // pero por una vía distinta (escritura parcial, no una llamada
+    // faltante). Envolver en la transacción hace que un fallo en
+    // cualquier paso revierta TODO, incluida la reserva del agente.
     public void ejecutar(String incidenteId) {
  
         Incidente incidente = incidenteRepository

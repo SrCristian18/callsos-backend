@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,13 +38,33 @@ public class ReporteController {
         this.crearAdministrativo = crearAdministrativo;
     }
  
-    /** POST /api/reportes/hallazgos — el agente reporta hallazgos al finalizar. */
+    /**
+     * POST /api/reportes/hallazgos — el agente reporta hallazgos al finalizar.
+     *
+     * FIX (Épica 8, hallazgo de seguridad #1): antes el "agenteId" salía
+     * DIRECTAMENTE del body de la petición (ReporteHallazgosRequest lo
+     * declaraba como campo) — cualquier agente autenticado podía firmar
+     * un reporte a nombre de OTRO agente con solo cambiar ese valor en
+     * el JSON. Rompía la cadena de responsabilidad de un reporte
+     * policial, y era la única excepción a la convención que sigue el
+     * resto del sistema (AgenteController, CaiController,
+     * DenuncianteController, ActualizarTipoIncidenteService, etc.):
+     * el actorId SIEMPRE sale de authentication.getName() (el JWT), y
+     * nunca de algo que el cliente declara sobre sí mismo.
+     *
+     * El campo "agenteId" se retiró del DTO de request — ya no tiene
+     * ningún efecto que pudiera falsificarse, así que mantenerlo ahí
+     * (aunque se ignorara) solo invitaría a confusión futura.
+     */
     @PostMapping("/hallazgos")
     public ResponseEntity<ReporteHallazgosResponse> crearHallazgos(
-            @Valid @RequestBody ReporteHallazgosRequest request) {
+            @Valid @RequestBody ReporteHallazgosRequest request,
+            Authentication authentication) {
  
+        String agenteIdDelJwt = authentication.getName();
+
         ReporteHallazgos reporte = crearHallazgos.ejecutar(
-            request.incidenteId(), request.agenteId(), request.descripcion());
+            request.incidenteId(), agenteIdDelJwt, request.descripcion());
  
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(new ReporteHallazgosResponse(
@@ -69,7 +90,6 @@ public class ReporteController {
  
     public record ReporteHallazgosRequest(
         @NotBlank String incidenteId,
-        @NotBlank String agenteId,
         @NotBlank String descripcion
     ) {}
  

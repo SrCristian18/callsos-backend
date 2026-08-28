@@ -1,9 +1,11 @@
 package com.callsos.backend.infrastructure.adapter.in.web;
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.model.EtaInfo;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.*;
+import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.ActualizarTipoIncidenteRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.CambiarEstadoRequest;
@@ -59,6 +61,7 @@ public class IncidenteController {
     private final SimularRecorridoAgentePort simularRecorrido;
     private final ActualizarTipoIncidentePort actualizarTipo;
     private final ConsultarEtaPort consultarEta;
+    private final AsignacionRepositoryPort asignacionRepository;
 
     @Value("${SIMULACION_HABILITADA:false}")
     private boolean simulacionHabilitada;
@@ -79,7 +82,8 @@ public class IncidenteController {
             EvaluarIncidentePort evaluarIncidente,
             SimularRecorridoAgentePort simularRecorrido,
             ActualizarTipoIncidentePort actualizarTipo,
-            ConsultarEtaPort consultarEta) {
+            ConsultarEtaPort consultarEta,
+            AsignacionRepositoryPort asignacionRepository) {
         this.crearIncidente        = crearIncidente;
         this.cambiarEstado         = cambiarEstado;
         this.consultarEstado       = consultarEstado;
@@ -96,15 +100,27 @@ public class IncidenteController {
         this.simularRecorrido      = simularRecorrido;
         this.actualizarTipo        = actualizarTipo;
         this.consultarEta          = consultarEta;
+        this.asignacionRepository  = asignacionRepository;
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
 
-    /** GET /{id} — detalle completo del incidente. */
+    /**
+     * GET /{id} — detalle completo del incidente.
+     *
+     * Épica 7: incluye agenteId/nombreAgente (si hay asignación activa) —
+     * es desde esta pantalla (DetalleIncidenteView) que Flutter navega a
+     * TrackingView, y CAI/Comando necesitan saber a qué agente
+     * suscribirse (/topic/agente/{agenteId}/ubicacion, Épica 3).
+     */
     @GetMapping("/{id}")
     public ResponseEntity<IncidenteResponse> consultar(@PathVariable String id) {
+        Incidente incidente = consultarIncidente.ejecutar(id);
+        Asignacion asignacionActiva = asignacionRepository
+            .buscarPorIncidente(id)
+            .orElse(null);
         return ResponseEntity.ok(
-            IncidenteMapper.toResponse(consultarIncidente.ejecutar(id)));
+            IncidenteMapper.toResponse(incidente, asignacionActiva));
     }
 
     /** GET /{id}/estado — estado actual. Solo lectura. */

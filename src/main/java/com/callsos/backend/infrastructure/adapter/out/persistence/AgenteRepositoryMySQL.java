@@ -38,7 +38,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     @Override
     public List<Agente> obtenerDisponibles() {
         String sql = """
-            SELECT id, nombre, direccion, telefono, latitud, longitud, estado
+            SELECT id, nombre, direccion, telefono, latitud, longitud, estado, token_fcm
             FROM agentes
             WHERE estado = 'DISPONIBLE'
             """;
@@ -52,7 +52,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     @Override
     public List<Agente> obtenerDisponiblesPorUnidad(String unidadPolicialId) {
         String sql = """
-            SELECT id, nombre, direccion, telefono, latitud, longitud, estado
+            SELECT id, nombre, direccion, telefono, latitud, longitud, estado, token_fcm
             FROM agentes
             WHERE estado = 'DISPONIBLE'
               AND unidad_policial_id = ?
@@ -125,6 +125,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             if (EstadoAgente.OCUPADO.name().equals(rs.getString("estado"))) {
                 agente.asignar();
             }
+            agente.setTokenFcm(rs.getString("token_fcm"));
             return agente;
         }
     }
@@ -142,5 +143,13 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             agenteId
         );
         return resultado.isEmpty() ? Optional.empty() : Optional.of(resultado.get(0));
+    }
+
+    @Override
+    public void actualizarTokenFcm(String agenteId, String tokenFcm) {
+        jdbc.update(
+            "UPDATE agentes SET token_fcm = ? WHERE id = ?",
+            tokenFcm, agenteId
+        );
     }
 }

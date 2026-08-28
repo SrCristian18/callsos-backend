@@ -142,6 +142,13 @@ public class SecurityConfig {
                     .hasAnyRole("DENUNCIANTE", "AGENTE", "OPERADOR_CAI", "COMANDO")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/denunciantes/*/token")
                     .hasRole("DENUNCIANTE")
+                // Épica 5: mismo patrón que el token del denunciante —
+                // hasRole confirma el rol, el ownership real (actorId ==
+                // {id} del path) se valida dentro del controller.
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/agentes/*/token")
+                    .hasRole("AGENTE")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/cais/*/token")
+                    .hasRole("OPERADOR_CAI")
 
                 .anyRequest().authenticated()
             )

@@ -76,6 +76,7 @@ class IncidenteControllerTest {
     @MockBean private SimularRecorridoAgentePort simularRecorrido;
     @MockBean private ActualizarTipoIncidentePort actualizarTipo;
     @MockBean private ConsultarEtaPort consultarEta;
+    @MockBean private com.callsos.backend.domain.port.out.AsignacionRepositoryPort asignacionRepository;
 
     private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
         return new UsernamePasswordAuthenticationToken(

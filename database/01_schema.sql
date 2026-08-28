@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS unidades_policiales (
     latitud     DECIMAL(10,8) NOT NULL,
     longitud    DECIMAL(11,8) NOT NULL,
     telefono    VARCHAR(20)  NULL,         -- agregado: requerido por el RowMapper
+    token_fcm   VARCHAR(255) NULL,         -- Épica 5: notificaciones push al CAI
     PRIMARY KEY (id),
     -- Índice espacial aproximado para consultas de cercanía (Haversine)
     INDEX idx_ubicacion (latitud, longitud)
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS agentes (
     telefono             VARCHAR(20)  NULL,
     estado               VARCHAR(20)  NOT NULL DEFAULT 'DISPONIBLE',
     unidad_policial_id   VARCHAR(36)  NOT NULL,
+    token_fcm            VARCHAR(255) NULL,         -- Épica 5: notificaciones push al agente
     PRIMARY KEY (id),
     INDEX idx_estado (estado),
     INDEX idx_unidad (unidad_policial_id),

@@ -10,31 +10,44 @@ package com.callsos.backend.application.service;
  */
 
 
+import com.callsos.backend.application.service.support.AgenteLiberador;
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.event.IncidenteFinalizadoEvent;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.in.EvaluarIncidentePort;
 import com.callsos.backend.domain.port.out.EventPublisherPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
+import org.springframework.transaction.annotation.Transactional;
  
 /**
  * Caso de uso: el agente finaliza la atención.
  * Transición: EN_ATENCION → FINALIZADO
  * Publica IncidenteFinalizadoEvent para notificar al denunciante.
+ *
+ * FIX: antes esta transición dejaba al agente OCUPADO en BD para
+ * siempre — ver el docstring de AgenteLiberador para el detalle
+ * completo del bug.
  */
 public class EvaluarIncidenteService implements EvaluarIncidentePort {
  
      private final IncidenteRepositoryPort incidenteRepository;
     private final EventPublisherPort eventPublisher;
+    private final AgenteLiberador agenteLiberador;
  
     public EvaluarIncidenteService(IncidenteRepositoryPort incidenteRepository,
-                                   EventPublisherPort eventPublisher) {
+                                   EventPublisherPort eventPublisher,
+                                   AgenteLiberador agenteLiberador) {
         this.incidenteRepository = incidenteRepository;
         this.eventPublisher      = eventPublisher;
+        this.agenteLiberador     = agenteLiberador;
     }
  
  
     @Override
+    @Transactional
+    // FIX (Épica 8): incidente.guardar() + (vía AgenteLiberador)
+    // asignacion.guardar() + agente.actualizarEstado() eran 3 escrituras
+    // sin protección transaccional.
     public void ejecutar(String incidenteId) {
  
         Incidente incidente = incidenteRepository
@@ -52,6 +65,8 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort {
         incidente.finalizar();
         incidenteRepository.guardar(incidente);
  
+        agenteLiberador.liberarSiHayAsignacionActiva(incidenteId);
+
         eventPublisher.publicar(new IncidenteFinalizadoEvent(
             incidenteId,
             incidente.getDenunciante().getId(),
@@ -60,4 +75,3 @@ public class EvaluarIncidenteService implements EvaluarIncidentePort {
         ));
     }
 }
- 

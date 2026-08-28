@@ -41,7 +41,7 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
     @Override
     public Optional<UnidadPolicial> buscarPorUbicacion(Ubicacion ubicacion) {
         String sql = """
-            SELECT id, nombre, direccion, latitud, longitud, telefono,
+            SELECT id, nombre, direccion, latitud, longitud, telefono, token_fcm,
                    (6371 * ACOS(
                        COS(RADIANS(?)) * COS(RADIANS(latitud)) *
                        COS(RADIANS(longitud) - RADIANS(?)) +
@@ -63,24 +63,34 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
     @Override
     public Optional<UnidadPolicial> buscarPorId(String id) {
         String sql = """
-            SELECT id, nombre, direccion, latitud, longitud, telefono
+            SELECT id, nombre, direccion, latitud, longitud, telefono, token_fcm
             FROM unidades_policiales
             WHERE id = ?
             """;
         return jdbc.query(sql, new UnidadPolicialRowMapper(), id)
             .stream().findFirst();
     }
+
+    @Override
+    public void actualizarTokenFcm(String unidadPolicialId, String tokenFcm) {
+        jdbc.update(
+            "UPDATE unidades_policiales SET token_fcm = ? WHERE id = ?",
+            tokenFcm, unidadPolicialId
+        );
+    }
  
     private static class UnidadPolicialRowMapper implements RowMapper<UnidadPolicial> {
         @Override
         public UnidadPolicial mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new UnidadPolicial(
+            UnidadPolicial unidad = new UnidadPolicial(
                 rs.getString("id"),
                 rs.getString("nombre"),
                 rs.getString("direccion"),
                 new Ubicacion(rs.getDouble("latitud"), rs.getDouble("longitud")),
                 rs.getString("telefono")
             );
+            unidad.setTokenFcm(rs.getString("token_fcm"));
+            return unidad;
         }
     }
 }

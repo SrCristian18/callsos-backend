@@ -82,7 +82,8 @@ public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
             SELECT a.id, a.fecha_asignacion, a.estado,
                    ag.id AS ag_id, ag.nombre AS ag_nombre,
                    ag.direccion AS ag_dir, ag.telefono AS ag_tel,
-                   ag.latitud AS ag_lat, ag.longitud AS ag_lon
+                   ag.latitud AS ag_lat, ag.longitud AS ag_lon,
+                   ag.token_fcm AS ag_token_fcm
             FROM asignaciones a
             JOIN agentes ag ON ag.id = a.agente_id
             WHERE a.incidente_id = ?
@@ -106,6 +107,10 @@ public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
                 ubicacion,
                 rs.getString("ag_tel")
             );
+            // Épica 5: token FCM del agente — necesario para que
+            // NotificacionEventListener pueda notificarlo sin una
+            // consulta extra al reconstituir la Asignacion.
+            agente.setTokenFcm(rs.getString("ag_token_fcm"));
  
             return Optional.of(Asignacion.reconstituir(
                 rs.getString("id"),

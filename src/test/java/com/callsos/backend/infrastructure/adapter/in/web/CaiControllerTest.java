@@ -6,6 +6,7 @@ package com.callsos.backend.infrastructure.adapter.in.web;
 
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.port.in.ConsultarAgentesDisponiblesPorCaiPort;
+import com.callsos.backend.domain.port.in.RegistrarTokenFcmUnidadPort;
 import com.callsos.backend.domain.valueobject.Ubicacion;
 import com.callsos.backend.infrastructure.config.CorsConfig;
 import com.callsos.backend.infrastructure.config.SecurityConfig;
@@ -23,9 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,6 +49,7 @@ class CaiControllerTest {
 
     @MockBean private JwtService jwtService;
     @MockBean private ConsultarAgentesDisponiblesPorCaiPort consultarDisponibles;
+    @MockBean private RegistrarTokenFcmUnidadPort registrarTokenFcm;
 
     private static UsernamePasswordAuthenticationToken actor(String id, String rol) {
         return new UsernamePasswordAuthenticationToken(
@@ -76,5 +82,62 @@ class CaiControllerTest {
                 .with(authentication(actor("cai-001", "OPERADOR_CAI"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").value("ag-001"));
+    }
+
+    // ── PATCH /{id}/token — Épica 5 ─────────────────────────────────────
+
+    @Test
+    @DisplayName("PATCH /{id}/token sin autenticación retorna 401")
+    void tokenSinAutenticacion() throws Exception {
+        mockMvc.perform(patch("/api/v1/cais/cai-001/token")
+                .contentType("application/json")
+                .content("{\"tokenFcm\": \"token-xyz\"}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/token con rol AGENTE retorna 403 (solo OPERADOR_CAI)")
+    void tokenRolIncorrecto() throws Exception {
+        mockMvc.perform(patch("/api/v1/cais/cai-001/token")
+                .with(authentication(actor("ag-001", "AGENTE")))
+                .contentType("application/json")
+                .content("{\"tokenFcm\": \"token-xyz\"}"))
+            .andExpect(status().isForbidden());
+
+        verify(registrarTokenFcm, never()).ejecutar(any(), any());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/token con actorId distinto al {id} del path retorna 403 (ownership)")
+    void tokenOwnershipViolado() throws Exception {
+        mockMvc.perform(patch("/api/v1/cais/cai-001/token")
+                .with(authentication(actor("cai-002", "OPERADOR_CAI")))
+                .contentType("application/json")
+                .content("{\"tokenFcm\": \"token-xyz\"}"))
+            .andExpect(status().isForbidden());
+
+        verify(registrarTokenFcm, never()).ejecutar(any(), any());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/token con actorId igual al {id} del path retorna 204")
+    void tokenOwnershipCorrecto() throws Exception {
+        mockMvc.perform(patch("/api/v1/cais/cai-001/token")
+                .with(authentication(actor("cai-001", "OPERADOR_CAI")))
+                .contentType("application/json")
+                .content("{\"tokenFcm\": \"token-xyz\"}"))
+            .andExpect(status().isNoContent());
+
+        verify(registrarTokenFcm).ejecutar("cai-001", "token-xyz");
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/token con tokenFcm en blanco retorna 400 (validación)")
+    void tokenFcmEnBlanco() throws Exception {
+        mockMvc.perform(patch("/api/v1/cais/cai-001/token")
+                .with(authentication(actor("cai-001", "OPERADOR_CAI")))
+                .contentType("application/json")
+                .content("{\"tokenFcm\": \"\"}"))
+            .andExpect(status().isBadRequest());
     }
 }

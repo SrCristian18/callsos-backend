@@ -25,4 +25,7 @@ public interface UnidadPolicialRepositoryPort {
  
     /** Busca una unidad por su ID — necesario para ReporteAdministrativo. */
     Optional<UnidadPolicial> buscarPorId(String id);
+
+    /** Épica 5 — registra/actualiza el token FCM del CAI. */
+    void actualizarTokenFcm(String unidadPolicialId, String tokenFcm);
 }
