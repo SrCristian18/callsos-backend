@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -75,7 +76,7 @@ class ReporteControllerTest {
             .thenReturn(new ReporteHallazgos("rh-001", "Hallazgo importante", incidente, agente));
 
         String body = """
-            {"incidenteId": "i-001", "agenteId": "ag-001", "descripcion": "Hallazgo importante"}
+            {"incidenteId": "i-001", "descripcion": "Hallazgo importante"}
             """;
 
         mockMvc.perform(post("/api/v1/reportes/hallazgos")
@@ -86,10 +87,37 @@ class ReporteControllerTest {
     }
 
     @Test
+    @DisplayName("FIX Épica 8 (suplantación de identidad): el agenteId usado es SIEMPRE el del JWT — "
+        + "ya no existe forma de declarar uno distinto, el campo se retiró del request")
+    void agenteIdSaleDelJwtNoDelCliente() throws Exception {
+        Incidente incidente = new Incidente(
+            "i-001", TipoIncidente.ROBOS_O_ASALTOS, "desc", ubicacion, denunciante);
+        Agente agente = new Agente("ag-777", "Otro Agente", "Av. Test", ubicacion, "300");
+        when(crearHallazgos.ejecutar("i-001", "ag-777", "desc"))
+            .thenReturn(new ReporteHallazgos("rh-001", "desc", incidente, agente));
+
+        String body = """
+            {"incidenteId": "i-001", "descripcion": "desc"}
+            """;
+
+        // Autenticado como "ag-777" — el JSON ni siquiera tiene dónde
+        // poner un agenteId distinto (el campo ya no existe en el DTO).
+        mockMvc.perform(post("/api/v1/reportes/hallazgos")
+                .with(authentication(actor("ag-777", "AGENTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isCreated());
+
+        // Verifica explícitamente que el servicio se llamó con el actor
+        // del JWT ("ag-777"), no con ningún otro valor.
+        verify(crearHallazgos).ejecutar("i-001", "ag-777", "desc");
+    }
+
+    @Test
     @DisplayName("POST /hallazgos con rol DENUNCIANTE retorna 403")
     void crearHallazgosProhibidoParaDenunciante() throws Exception {
         String body = """
-            {"incidenteId": "i-001", "agenteId": "ag-001", "descripcion": "Hallazgo importante"}
+            {"incidenteId": "i-001", "descripcion": "Hallazgo importante"}
             """;
 
         mockMvc.perform(post("/api/v1/reportes/hallazgos")
@@ -105,7 +133,7 @@ class ReporteControllerTest {
     @DisplayName("POST /hallazgos con descripción en blanco retorna 400")
     void crearHallazgosDescripcionEnBlanco() throws Exception {
         String body = """
-            {"incidenteId": "i-001", "agenteId": "ag-001", "descripcion": ""}
+            {"incidenteId": "i-001", "descripcion": ""}
             """;
 
         mockMvc.perform(post("/api/v1/reportes/hallazgos")
