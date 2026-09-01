@@ -72,7 +72,7 @@ class CaiControllerTest {
     }
 
     @Test
-    @DisplayName("GET /{caiId}/agentes/disponibles con rol OPERADOR_CAI retorna 200")
+    @DisplayName("GET /{caiId}/agentes/disponibles con rol OPERADOR_CAI sobre su propio CAI retorna 200")
     void operadorCaiPuedeConsultar() throws Exception {
         Agente agente = new Agente(
             "ag-001", "Pedro", "Av. Test", new Ubicacion(10.4, -75.5), "3001111111");
@@ -80,6 +80,31 @@ class CaiControllerTest {
 
         mockMvc.perform(get("/api/v1/cais/cai-001/agentes/disponibles")
                 .with(authentication(actor("cai-001", "OPERADOR_CAI"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value("ag-001"));
+    }
+
+    // ── Ownership entre CAIs — Épica 8, hallazgo #3 (Regla 5) ──────────────
+
+    @Test
+    @DisplayName("GET /{caiId}/agentes/disponibles con OPERADOR_CAI de OTRO CAI retorna 403")
+    void operadorCaiAjenoRetorna403() throws Exception {
+        mockMvc.perform(get("/api/v1/cais/cai-002/agentes/disponibles")
+                .with(authentication(actor("cai-001", "OPERADOR_CAI"))))
+            .andExpect(status().isForbidden());
+
+        verify(consultarDisponibles, never()).ejecutar(any());
+    }
+
+    @Test
+    @DisplayName("GET /{caiId}/agentes/disponibles con rol COMANDO puede consultar cualquier CAI")
+    void comandoPuedeConsultarCualquierCai() throws Exception {
+        Agente agente = new Agente(
+            "ag-001", "Pedro", "Av. Test", new Ubicacion(10.4, -75.5), "3001111111");
+        when(consultarDisponibles.ejecutar("cai-002")).thenReturn(List.of(agente));
+
+        mockMvc.perform(get("/api/v1/cais/cai-002/agentes/disponibles")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").value("ag-001"));
     }

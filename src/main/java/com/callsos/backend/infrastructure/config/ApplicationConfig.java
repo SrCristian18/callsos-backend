@@ -143,21 +143,39 @@ public class ApplicationConfig {
         return new ConsultarEstadoIncidenteService(incidenteRepo);
     }
  
+    /**
+     * Épica 8 (hallazgo de seguridad #2) — ahora recibe AsignacionRepositoryPort
+     * para validar ownership (el agente autenticado debe ser el agente
+     * REALMENTE asignado al incidente) antes de permitir la transición.
+     */
     @Bean
     public AtenderIncidentePort atenderIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
+            AsignacionRepositoryPort asignacionRepo,
             EventPublisherPort eventPublisher) {
-        return new AtenderIncidenteService(incidenteRepo, eventPublisher);
+        return new AtenderIncidenteService(incidenteRepo, asignacionRepo, eventPublisher);
     }
  
+    /**
+     * Épica 8 (hallazgo de seguridad #2) — ahora recibe AsignacionRepositoryPort
+     * para validar ownership (el agente autenticado debe ser el agente
+     * REALMENTE asignado al incidente) antes de permitir la transición.
+     */
     @Bean
     public EvaluarIncidentePort evaluarIncidentePort(
             IncidenteRepositoryPort incidenteRepo,
+            AsignacionRepositoryPort asignacionRepo,
             EventPublisherPort eventPublisher,
             AgenteLiberador agenteLiberador) {
-        return new EvaluarIncidenteService(incidenteRepo, eventPublisher, agenteLiberador);
+        return new EvaluarIncidenteService(incidenteRepo, asignacionRepo, eventPublisher, agenteLiberador);
     }
  
+    /**
+     * Épica 8 (hallazgo de seguridad #2) — AsignacionRepositoryPort ya
+     * estaba inyectado aquí; ahora también se usa para validar ownership
+     * (el agente autenticado debe ser el agente REALMENTE asignado al
+     * incidente) antes de permitir la transición.
+     */
     @Bean
     public MarcarAgenteEnCaminoPort marcarAgenteEnCaminoPort(
             IncidenteRepositoryPort incidenteRepo,

@@ -243,13 +243,13 @@ class IncidenteControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /{id}/atender con rol AGENTE retorna 204")
+    @DisplayName("PATCH /{id}/atender con rol AGENTE retorna 204 y usa el actorId del JWT")
     void atenderComoAgente() throws Exception {
         mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
                 .with(authentication(actor("ag-001", "AGENTE"))))
             .andExpect(status().isNoContent());
 
-        verify(atenderIncidente).ejecutar("i-001");
+        verify(atenderIncidente).ejecutar("i-001", "ag-001");
     }
 
     @Test
@@ -266,11 +266,69 @@ class IncidenteControllerTest {
     @DisplayName("PATCH /{id}/atender con transición inválida retorna 422")
     void atenderTransicionInvalida() throws Exception {
         doThrow(new IllegalStateException("Transición inválida"))
-            .when(atenderIncidente).ejecutar("i-001");
+            .when(atenderIncidente).ejecutar("i-001", "ag-001");
 
         mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
                 .with(authentication(actor("ag-001", "AGENTE"))))
             .andExpect(status().isUnprocessableEntity());
+    }
+
+    // ── Ownership entre agentes — Épica 8, hallazgo de seguridad #2 ─────────
+
+    @Test
+    @DisplayName("PATCH /{id}/en-camino: agente ajeno (no asignado) retorna 403")
+    void enCaminoAgenteAjenoRetorna403() throws Exception {
+        doThrow(new AccesoDenegadoException(
+                "El agente autenticado no es el agente asignado a este incidente."))
+            .when(marcarEnCamino).ejecutar("i-001", "ag-002");
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/en-camino")
+                .with(authentication(actor("ag-002", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/atender: agente ajeno (no asignado) retorna 403")
+    void atenderAgenteAjenoRetorna403() throws Exception {
+        doThrow(new AccesoDenegadoException(
+                "El agente autenticado no es el agente asignado a este incidente."))
+            .when(atenderIncidente).ejecutar("i-001", "ag-002");
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/atender")
+                .with(authentication(actor("ag-002", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/evaluar: agente ajeno (no asignado) retorna 403")
+    void evaluarAgenteAjenoRetorna403() throws Exception {
+        doThrow(new AccesoDenegadoException(
+                "El agente autenticado no es el agente asignado a este incidente."))
+            .when(evaluarIncidente).ejecutar("i-001", "ag-002");
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/evaluar")
+                .with(authentication(actor("ag-002", "AGENTE"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/evaluar con rol AGENTE (dueño) retorna 204 y usa el actorId del JWT")
+    void evaluarComoAgenteDueno() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/evaluar")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isNoContent());
+
+        verify(evaluarIncidente).ejecutar("i-001", "ag-001");
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/en-camino con rol AGENTE (dueño) retorna 204 y usa el actorId del JWT")
+    void enCaminoComoAgenteDueno() throws Exception {
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/en-camino")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isNoContent());
+
+        verify(marcarEnCamino).ejecutar("i-001", "ag-001");
     }
 
     @Test
