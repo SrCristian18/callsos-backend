@@ -1,5 +1,6 @@
 package com.callsos.backend.infrastructure.adapter.in.web;
 
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.port.in.ConsultarAgentesDisponiblesPorCaiPort;
 import com.callsos.backend.domain.port.in.RegistrarTokenFcmUnidadPort;
@@ -46,14 +47,29 @@ public class CaiController {
      * GET /{caiId}/agentes/disponibles — agentes en estado DISPONIBLE
      * dentro del CAI indicado.
      *
-     * Nota: no valida que caiId coincida con el actorId del operador
-     * autenticado (igual que /por-cai en IncidenteController, que confía
-     * en el JWT para el CAI propio). Si en el futuro un operador debe
-     * ver SOLO su propio CAI, agregar esa validación aquí.
+     * FIX (Épica 8, hallazgo #3 — Regla 5, aislamiento entre CAIs): antes
+     * no se validaba que caiId coincidiera con el actorId del operador
+     * autenticado — cualquier OPERADOR_CAI podía pasar el ID de OTRO CAI
+     * y ver sus agentes disponibles. Mismo patrón que AuditoriaController:
+     *   - OPERADOR_CAI: solo puede consultar SU PROPIO CAI (actorId ==
+     *     unidadPolicialId por convención, ver P9 en el análisis técnico).
+     *   - COMANDO: visión global, sin restricción adicional.
      */
     @GetMapping("/{caiId}/agentes/disponibles")
     public ResponseEntity<List<AgenteDisponibleResponse>> agentesDisponibles(
-            @PathVariable String caiId) {
+            @PathVariable String caiId, Authentication authentication) {
+
+        String actorId = authentication.getName();
+        String rol = authentication.getAuthorities().stream()
+            .findFirst()
+            .map(a -> a.getAuthority().replace("ROLE_", ""))
+            .orElse("");
+
+        if ("OPERADOR_CAI".equals(rol) && !caiId.equals(actorId)) {
+            throw new AccesoDenegadoException(
+                "El operador autenticado no pertenece a este CAI.");
+        }
+
         List<Agente> agentes = consultarDisponibles.ejecutar(caiId);
         return ResponseEntity.ok(AgenteMapper.toResponseList(agentes));
     }

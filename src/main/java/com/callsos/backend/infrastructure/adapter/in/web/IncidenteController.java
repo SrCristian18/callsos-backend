@@ -230,9 +230,11 @@ public class IncidenteController {
     @PatchMapping("/{id}/en-camino")
     public ResponseEntity<Void> marcarEnCamino(
         @PathVariable String id,
-        @RequestParam(required = false, defaultValue = "false") boolean simular) 
+        @RequestParam(required = false, defaultValue = "false") boolean simular,
+        Authentication authentication)
     {
-        marcarEnCamino.ejecutar(id);
+        String actorId = authentication.getName();
+        marcarEnCamino.ejecutar(id, actorId);
         if(simular && simulacionHabilitada)
         {
             simularRecorrido.iniciar(id);
@@ -255,14 +257,18 @@ public class IncidenteController {
     }
 
     @PatchMapping("/{id}/atender")
-    public ResponseEntity<Void> atender(@PathVariable String id) {
-        atenderIncidente.ejecutar(id);
+    public ResponseEntity<Void> atender(
+            @PathVariable String id, Authentication authentication) {
+        String actorId = authentication.getName();
+        atenderIncidente.ejecutar(id, actorId);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/evaluar")
-    public ResponseEntity<Void> evaluar(@PathVariable String id) {
-        evaluarIncidente.ejecutar(id);
+    public ResponseEntity<Void> evaluar(
+            @PathVariable String id, Authentication authentication) {
+        String actorId = authentication.getName();
+        evaluarIncidente.ejecutar(id, actorId);
         return ResponseEntity.noContent().build();
     }
 

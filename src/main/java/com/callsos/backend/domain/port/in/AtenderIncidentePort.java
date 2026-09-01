@@ -17,6 +17,11 @@ public interface AtenderIncidentePort {
     
     /**
      * @param incidenteId  ID del incidente que pasa a ser atendido
+     * @param actorId      ID del agente autenticado (JWT) — debe coincidir
+     *                     con el agente de la Asignacion activa del
+     *                     incidente. Épica 8, hallazgo #2: sin esta
+     *                     validación, cualquier agente autenticado podía
+     *                     operar sobre el incidente de un colega.
      */
-    void ejecutar(String incidenteId);
+    void ejecutar(String incidenteId, String actorId);
 }

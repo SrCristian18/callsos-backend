@@ -11,6 +11,7 @@ package com.callsos.backend.application.service;
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
 import com.callsos.backend.domain.event.AgenteEnCaminoEvent;
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.model.Incidente;
@@ -26,6 +27,14 @@ import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
  * Publica AgenteEnCaminoEvent para:
  *   - Notificar al denunciante vía Firebase FCM
  *   - Activar el canal WebSocket de tracking GPS
+ *
+ * FIX (Épica 8, hallazgo de seguridad #2): antes este servicio no
+ * validaba OWNERSHIP — cualquier agente autenticado (rol AGENTE
+ * válido, pero sin relación con el incidente) podía marcar como
+ * "en camino" un incidente asignado a un colega. Ahora se carga la
+ * Asignacion activa del incidente y se compara asignacion.getAgente()
+ * contra el actorId del JWT antes de ejecutar la transición — mismo
+ * patrón que ActualizarTipoIncidenteService.
  */
 public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
     
@@ -42,30 +51,36 @@ public class MarcarAgenteEnCaminoService implements MarcarAgenteEnCaminoPort{
     }
  
     @Override
-    public void ejecutar(String incidenteId) {
+    public void ejecutar(String incidenteId, String actorId) {
  
         Incidente incidente = incidenteRepository
             .buscarPorId(incidenteId)
             .orElseThrow(() -> new IllegalArgumentException(
                 "Incidente no encontrado: " + incidenteId));
+
+        // Ownership: solo el agente REALMENTE asignado puede operar
+        // sobre este incidente (Épica 8, hallazgo #2).
+        Asignacion asignacionActiva = asignacionRepository
+            .buscarPorIncidente(incidenteId)
+            .orElseThrow(() -> new AccesoDenegadoException(
+                "No hay una asignación activa para este incidente."));
+
+        if (!asignacionActiva.getAgente().getId().equals(actorId)) {
+            throw new AccesoDenegadoException(
+                "El agente autenticado no es el agente asignado a este incidente.");
+        }
  
         EstadoIncidente estadoAnterior = incidente.getEstado();
 
         incidente.marcarAgenteEnCamino();
         incidenteRepository.guardar(incidente);
  
-        // Obtener el ID del agente asignado desde la asignación activa
-        String agenteId = asignacionRepository
-            .buscarPorIncidente(incidenteId)
-            .map(a -> a.getAgente().getId())
-            .orElse("desconocido");
- 
         // Publicar evento — Firebase y WebSocket escucharán esto
         eventPublisher.publicar(new AgenteEnCaminoEvent(
             incidenteId,
             incidente.getDenunciante().getId(),
             estadoAnterior,
-            agenteId
+            asignacionActiva.getAgente().getId()
         ));
     }
 }
