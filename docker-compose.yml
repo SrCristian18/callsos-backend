@@ -75,6 +75,12 @@ services:
     build:
       context: ../callsos-frontend
       dockerfile: Dockerfile
+      args:
+        # SOLO pruebas piloto — flag de COMPILACIÓN (--dart-define), no de
+        # runtime. Cambiar este valor en .env exige "docker compose build
+        # frontend" (o "up --build"), un simple restart no alcanza porque
+        # ya quedó horneado dentro del JS generado por flutter build web.
+        MODO_PRUEBA_HABILITADO: ${MODO_PRUEBA_HABILITADO:-false}
     container_name: callsos-frontend
     restart: always
     ports:
