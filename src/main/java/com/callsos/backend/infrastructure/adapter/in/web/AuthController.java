@@ -81,6 +81,7 @@ public class AuthController {
                 request.getApellido(),
                 request.getDocumento(),
                 request.getTelefono(),
+                request.getCorreo(),
                 request.getPassword(),
                 request.getConfirmarPassword()
             ));
@@ -98,6 +99,7 @@ public class AuthController {
                 request.getToken(),
                 request.getNombre(),
                 request.getTelefono(),
+                request.getCorreo(),
                 request.getUsername(),
                 request.getPassword(),
                 request.getConfirmarPassword()

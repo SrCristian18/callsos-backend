@@ -24,6 +24,7 @@ public interface RegistrarAgenteConInvitacionPort {
         String token,
         String nombre,
         String telefono,
+        String correo,
         String username,
         String password,
         String confirmarPassword

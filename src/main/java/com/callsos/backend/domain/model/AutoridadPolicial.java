@@ -75,6 +75,21 @@ public abstract class AutoridadPolicial {
      * Denunciante — ver RegistrarTokenFcmAgenteService/RegistrarTokenFcmUnidadService.
      */
     protected String tokenFcm;
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 1): correo de contacto — requisito para
+     * poder implementar recuperación de contraseña por email en un paso
+     * posterior de la misma épica. Mismo criterio que tokenFcm: vive acá
+     * (no en las subclases) porque tanto Agente como UnidadPolicial lo
+     * necesitan. A diferencia de tokenFcm, SÍ se recoge en el registro
+     * (para Agente — ver RegistrarAgenteConInvitacionService); aun así se
+     * deja mutable/nullable (no en el constructor) porque las cuentas YA
+     * existentes en BD (seed) no lo tienen y no hay forma de backfillarlo
+     * retroactivamente. UnidadPolicial no tiene flujo de registro en la
+     * app (los CAI se crean solo por seed SQL) — la columna queda lista
+     * para un futuro "Comando crea un CAI", pero nada la puebla todavía.
+     */
+    protected String correo;
     
     /** Lista de componentes hijo (Composite). */
     private final List<AutoridadPolicial> subordinados;
@@ -138,6 +153,21 @@ public abstract class AutoridadPolicial {
 
     public boolean tieneTokenFcm() {
         return tokenFcm != null && !tokenFcm.isBlank();
+    }
+
+    /**
+     * Se setea después de construir el objeto — misma razón que
+     * {@link #setTokenFcm}. Para Agente, se llama inmediatamente después
+     * de crear la instancia durante el registro (dato ya disponible en
+     * ese momento, a diferencia del token FCM); al reconstituir desde
+     * BD, puede ser null (cuentas sembradas antes de este fix).
+     */
+    public void setCorreo(String correo) {
+        this.correo = correo;
+    }
+
+    public String getCorreo() {
+        return correo;
     }
  
     /**

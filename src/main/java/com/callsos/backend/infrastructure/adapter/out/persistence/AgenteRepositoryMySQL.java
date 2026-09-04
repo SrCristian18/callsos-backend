@@ -38,7 +38,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     @Override
     public List<Agente> obtenerDisponibles() {
         String sql = """
-            SELECT id, nombre, direccion, telefono, latitud, longitud, estado, token_fcm
+            SELECT id, nombre, direccion, telefono, correo, latitud, longitud, estado, token_fcm
             FROM agentes
             WHERE estado = 'DISPONIBLE'
             """;
@@ -52,7 +52,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
     @Override
     public List<Agente> obtenerDisponiblesPorUnidad(String unidadPolicialId) {
         String sql = """
-            SELECT id, nombre, direccion, telefono, latitud, longitud, estado, token_fcm
+            SELECT id, nombre, direccion, telefono, correo, latitud, longitud, estado, token_fcm
             FROM agentes
             WHERE estado = 'DISPONIBLE'
               AND unidad_policial_id = ?
@@ -91,8 +91,8 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
         jdbc.update(
             """
             INSERT INTO agentes
-                (id, nombre, direccion, latitud, longitud, telefono, estado, unidad_policial_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, nombre, direccion, latitud, longitud, telefono, correo, estado, unidad_policial_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             agente.getId(),
             agente.getNombre(),
@@ -100,6 +100,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             ubicacion != null ? ubicacion.getLatitud()  : null,
             ubicacion != null ? ubicacion.getLongitud() : null,
             agente.getTelefono(),
+            agente.getCorreo(),
             agente.getEstado().name(),
             unidadPolicialId
         );
@@ -126,6 +127,7 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
                 agente.asignar();
             }
             agente.setTokenFcm(rs.getString("token_fcm"));
+            agente.setCorreo(rs.getString("correo"));
             return agente;
         }
     }

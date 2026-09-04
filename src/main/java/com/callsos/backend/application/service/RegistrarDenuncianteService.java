@@ -75,7 +75,7 @@ public class RegistrarDenuncianteService implements RegistrarDenunciantePort {
             documento,
             null,               // origen — no se recoge en el registro
             datos.telefono(),
-            null,               // correo — no se recoge en este formulario
+            datos.correo(),     // Épica 8 (hallazgo #6, Parte 1): antes null
             null                // tokenFcm — se registra después, al abrir la app
         );
         denuncianteRepository.guardar(denunciante);

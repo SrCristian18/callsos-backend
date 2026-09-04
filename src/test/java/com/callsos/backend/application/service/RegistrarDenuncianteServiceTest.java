@@ -42,7 +42,7 @@ class RegistrarDenuncianteServiceTest {
 
     private RegistroDenuncianteData datosValidos() {
         return new RegistroDenuncianteData(
-            "Juan", "Pérez", "1001234567", "3001111111",
+            "Juan", "Pérez", "1001234567", "3001111111", "juan.perez@callsos.test",
             "Password123", "Password123");
     }
 
@@ -61,6 +61,10 @@ class RegistrarDenuncianteServiceTest {
         verify(denuncianteRepository).guardar(captor.capture());
         assertEquals("Juan Pérez", captor.getValue().getNombre());
         assertEquals("1001234567", captor.getValue().getDocumento());
+        // Épica 8 (hallazgo #6, Parte 1): antes este campo quedaba
+        // hardcodeado en null en el servicio, aunque la columna en BD
+        // ya existía desde 01_schema.sql.
+        assertEquals("juan.perez@callsos.test", captor.getValue().getCorreo());
 
         verify(usuarioRepository).guardar(
             any(), eq("1001234567"), eq("Juan Pérez"), eq("hash-bcrypt-xyz"),
@@ -75,7 +79,8 @@ class RegistrarDenuncianteServiceTest {
     @DisplayName("contraseñas no coinciden lanza IllegalStateException sin tocar repositorios")
     void passwordsNoCoinciden() {
         RegistroDenuncianteData datos = new RegistroDenuncianteData(
-            "Juan", "Pérez", "1001234567", "300", "Password123", "OtraPassword456");
+            "Juan", "Pérez", "1001234567", "300", "juan@callsos.test",
+            "Password123", "OtraPassword456");
 
         assertThrows(IllegalStateException.class, () -> service.ejecutar(datos));
 
@@ -86,7 +91,8 @@ class RegistrarDenuncianteServiceTest {
     @DisplayName("documento en blanco lanza IllegalStateException")
     void documentoEnBlanco() {
         RegistroDenuncianteData datos = new RegistroDenuncianteData(
-            "Juan", "Pérez", "   ", "300", "Password123", "Password123");
+            "Juan", "Pérez", "   ", "300", "juan@callsos.test",
+            "Password123", "Password123");
 
         assertThrows(IllegalStateException.class, () -> service.ejecutar(datos));
 
@@ -97,7 +103,8 @@ class RegistrarDenuncianteServiceTest {
     @DisplayName("documento null lanza IllegalStateException")
     void documentoNulo() {
         RegistroDenuncianteData datos = new RegistroDenuncianteData(
-            "Juan", "Pérez", null, "300", "Password123", "Password123");
+            "Juan", "Pérez", null, "300", "juan@callsos.test",
+            "Password123", "Password123");
 
         assertThrows(IllegalStateException.class, () -> service.ejecutar(datos));
 

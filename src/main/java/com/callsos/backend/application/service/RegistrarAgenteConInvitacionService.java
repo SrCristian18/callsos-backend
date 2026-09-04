@@ -79,6 +79,7 @@ public class RegistrarAgenteConInvitacionService implements RegistrarAgenteConIn
             null,               // ubicación — aún no reportó posición
             datos.telefono()
         );
+        agente.setCorreo(datos.correo());
         agenteRepository.guardar(agente, invitacion.getUnidadPolicialId());
 
         String passwordHash = passwordEncoder.encode(datos.password());

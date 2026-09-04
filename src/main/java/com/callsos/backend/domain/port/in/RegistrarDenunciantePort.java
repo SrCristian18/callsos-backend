@@ -28,6 +28,7 @@ public interface RegistrarDenunciantePort {
         String apellido,
         String documento,
         String telefono,
+        String correo,
         String password,
         String confirmarPassword
     ) {}

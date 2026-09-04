@@ -92,4 +92,37 @@ class AgenteRepositoryMySQLTest {
 
         assertTrue(unidad.isEmpty());
     }
+
+    // ── Épica 8 (hallazgo #6, Parte 1) ──────────────────────────────────
+
+    @Test
+    @DisplayName("guardar() persiste el correo y se recupera correctamente al releer de BD")
+    void guardarPersisteCorreo() {
+        Agente nuevo = new Agente(
+            "ag-test-correo-001", "Nuevo Agente", "Calle Nueva 1",
+            null, "3005551111");
+        nuevo.setCorreo("nuevo.agente@callsos.test");
+
+        repository.guardar(nuevo, "cai-test-001");
+
+        List<Agente> disponibles = repository.obtenerDisponiblesPorUnidad("cai-test-001");
+        Agente releido = disponibles.stream()
+            .filter(a -> a.getId().equals("ag-test-correo-001"))
+            .findFirst()
+            .orElseThrow();
+
+        assertEquals("nuevo.agente@callsos.test", releido.getCorreo());
+    }
+
+    @Test
+    @DisplayName("agente sembrado sin correo (data-test.sql, previo a este fix) se lee como null sin lanzar")
+    void agenteSinCorreoSeLeeComoNull() {
+        List<Agente> disponibles = repository.obtenerDisponiblesPorUnidad("cai-test-001");
+        Agente sembrado = disponibles.stream()
+            .filter(a -> a.getId().equals("ag-test-001"))
+            .findFirst()
+            .orElseThrow();
+
+        assertNull(sembrado.getCorreo());
+    }
 }

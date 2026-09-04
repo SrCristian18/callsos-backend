@@ -5,6 +5,7 @@
 package com.callsos.backend.application.service;
 
 import com.callsos.backend.domain.enums.RolUsuario;
+import com.callsos.backend.domain.model.Agente;
 import com.callsos.backend.domain.model.InvitacionAgente;
 import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.domain.port.in.RegistrarAgenteConInvitacionPort.RegistroAgenteData;
@@ -47,8 +48,8 @@ class RegistrarAgenteConInvitacionServiceTest {
 
     private RegistroAgenteData datosValidos(String token) {
         return new RegistroAgenteData(
-            token, "Pedro Agente", "3002222222", "pedro.agente",
-            "Password123", "Password123");
+            token, "Pedro Agente", "3002222222", "pedro.agente@callsos.test",
+            "pedro.agente", "Password123", "Password123");
     }
 
     @Test
@@ -78,10 +79,30 @@ class RegistrarAgenteConInvitacionServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "registro exitoso (Épica 8, hallazgo #6, Parte 1): el agente guardado lleva el "
+        + "correo del formulario — antes de este fix, Agente no tenía ningún campo de correo")
+    void registroGuardaElCorreo() {
+        InvitacionAgente invitacion = InvitacionAgente.generar("cai-001", "usr-comando-001");
+        when(invitacionRepository.buscarPorToken(invitacion.getToken()))
+            .thenReturn(Optional.of(invitacion));
+        when(usuarioRepository.existePorUsername("pedro.agente")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash-bcrypt-xyz");
+        when(jwtService.generarToken(any(), any())).thenReturn("jwt-token-xyz");
+
+        service.ejecutar(datosValidos(invitacion.getToken()));
+
+        ArgumentCaptor<Agente> captor = ArgumentCaptor.forClass(Agente.class);
+        verify(agenteRepository).guardar(captor.capture(), eq("cai-001"));
+        assertEquals("pedro.agente@callsos.test", captor.getValue().getCorreo());
+    }
+
+    @Test
     @DisplayName("contraseñas no coinciden: lanza IllegalStateException sin tocar los repositorios")
     void passwordsNoCoinciden() {
         RegistroAgenteData datos = new RegistroAgenteData(
-            "token-x", "Pedro", "300", "pedro", "Password123", "OtraPassword456");
+            "token-x", "Pedro", "300", "pedro@callsos.test", "pedro",
+            "Password123", "OtraPassword456");
 
         assertThrows(IllegalStateException.class, () -> service.ejecutar(datos));
 
