@@ -26,6 +26,35 @@ import java.util.List;
  * La agregación (rombo blanco) del diagrama 2 se representa con
  * la lista `subordinados` — AutoridadPolicial agrega instancias
  * de sí misma.
+ *
+ * ══════════════════════════════════════════════════════════════════
+ * ESTADO (Épica 8, hallazgo #8.1 — auditoría de código muerto):
+ * ══════════════════════════════════════════════════════════════════
+ * A la fecha de esta nota, {@link #agregar}, {@link #eliminar} y
+ * {@link #getSubordinados} NUNCA se invocan desde ningún caso de uso
+ * real — `subordinados` queda siempre vacía en producción. La
+ * jerarquía de mando real hoy es plana (un CAI tiene Agentes vía
+ * `AgenteRepositoryPort`, ver `UnidadPolicial.getAgentes()`, que
+ * consulta BD directamente y NO pasa por este Composite).
+ *
+ * SE DEJA A PROPÓSITO (decisión explícita, no descuido): este
+ * Composite queda preparado para una futura jerarquía real de
+ * unidades (ej. una UnidadPolicial que reporte a otra UnidadPolicial
+ * de rango superior — comisarías, zonas, etc.), que el modelo de
+ * dominio actual no contempla todavía. Si se implementa esa
+ * funcionalidad, este es el mecanismo a poblar (vía `agregar()` al
+ * cargar la jerarquía desde BD) y consultar (vía `getSubordinados()`
+ * o los helpers de `UnidadPolicial`).
+ *
+ * Antes de darle uso real, revisar:
+ * - Quién puebla `subordinados` al reconstruir desde BD (hoy ningún
+ *   RowMapper lo hace — la tabla `unidades_policiales` no tiene ni
+ *   siquiera una columna de unidad superior).
+ * - Si `getAgentes()`/`getAgentesDisponibles()` de `UnidadPolicial`
+ *   deberían seguir yendo directo a BD (más simple, ya probado) o
+ *   empezar a apoyarse en este Composite (más fiel al patrón, pero
+ *   requiere mantener el árbol en memoria sincronizado con BD).
+ * ══════════════════════════════════════════════════════════════════
  */
 
 public abstract class AutoridadPolicial {
@@ -61,7 +90,9 @@ public abstract class AutoridadPolicial {
         this.subordinados = new ArrayList<>();
     }
     
-     // ── Operaciones Composite ──────────────────────────────────────────────
+     // ── Operaciones Composite (Épica 8, hallazgo #8.1: sin uso real hoy
+     // — preparado para una futura jerarquía de unidades, ver docstring
+     // de la clase) ───────────────────────────────────────────────────
  
     /**
      * Agrega un subordinado (Agente u otra UnidadPolicial).

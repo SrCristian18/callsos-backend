@@ -20,6 +20,13 @@ import java.util.List;
  *
  * Fase E: se agregan 3 métodos de consulta que Flutter necesita
  * para construir las pantallas de historial y panel de trabajo.
+ *
+ * Épica 8 (hallazgo #8.2 — limpieza de código muerto): se retiró
+ * `actualizarEstado(String, EstadoIncidente)` — nunca tuvo callers
+ * reales; todo el flujo de transición de estado pasa por
+ * `guardar(Incidente)`, que persiste el agregado completo (incluido
+ * su estado) tras que el propio `Incidente` valida la transición
+ * (`validarTransicion`). Confirmado sin riesgo antes de eliminar.
  */
 public interface IncidenteRepositoryPort {
     
@@ -27,8 +34,6 @@ public interface IncidenteRepositoryPort {
  
     Optional<Incidente> buscarPorId(String id);
  
-    void actualizarEstado(String id, EstadoIncidente estado);
-
     /**
      * Historial de incidentes creados por un denunciante.
      * Pantalla: "Mis denuncias" en la app del denunciante.
