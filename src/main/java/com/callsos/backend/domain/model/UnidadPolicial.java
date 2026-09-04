@@ -42,6 +42,16 @@ public class UnidadPolicial extends AutoridadPolicial {
  
     /**
      * Devuelve solo los Agentes directamente subordinados a esta unidad.
+     *
+     * NOTA (Épica 8, hallazgo #8.1): en la práctica `subordinados` (la
+     * lista del Composite heredada de {@link AutoridadPolicial}) está
+     * siempre vacía — ningún caso de uso real puebla la jerarquía en
+     * memoria. La consulta REAL de "agentes de un CAI" que usa el resto
+     * de la app va directo a BD vía
+     * `AgenteRepositoryPort.obtenerDisponiblesPorUnidad()`
+     * (`ConsultarAgentesDisponiblesPorCaiService`), no por acá. Este
+     * método queda funcional para cuando el Composite se empiece a
+     * poblar de verdad (ver docstring de {@link AutoridadPolicial}).
      */
     public List<Agente> getAgentes() {
        return getSubordinados().stream()

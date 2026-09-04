@@ -93,21 +93,6 @@ class IncidenteRepositoryMySQLTest {
     }
 
     @Test
-    @DisplayName("actualizarEstado cambia el estado en BD")
-    void actualizarEstado() {
-        Incidente incidente = new Incidente(
-            "i-integ-003", TipoIncidente.ROBOS_O_ASALTOS,
-            "desc", ubicacion, denunciante);
-        repository.guardar(incidente);
-
-        repository.actualizarEstado("i-integ-003", EstadoIncidente.DERIVADO_A_CAI);
-
-        Optional<Incidente> actualizado = repository.buscarPorId("i-integ-003");
-        assertTrue(actualizado.isPresent());
-        assertEquals(EstadoIncidente.DERIVADO_A_CAI, actualizado.get().getEstado());
-    }
-
-    @Test
     @DisplayName("guardar persiste el nuevo tipo tras cambiarTipo() — Épica 1")
     void guardarPersisteNuevoTipo() {
         Incidente incidente = new Incidente(
@@ -190,11 +175,21 @@ class IncidenteRepositoryMySQLTest {
             "i-estado-002", TipoIncidente.RIÑAS_O_PELEAS,
             "Pendiente 2", ubicacion, denunciante));
 
+        // Épica 8 (hallazgo #8.2): antes se guardaba en CREADO y se
+        // pasaba a DERIVADO_A_CAI con el ya retirado
+        // `repository.actualizarEstado(id, estado)` — ahora se deriva
+        // el agregado ANTES de guardar (mismo patrón que buscarPorCAI,
+        // arriba), que es como realmente transiciona un Incidente en
+        // producción (vía `guardar(Incidente)`, nunca un UPDATE directo
+        // de la columna estado).
+        UnidadPolicial caiDerivado = new UnidadPolicial(
+            "cai-test-buscarporestado", "CAI Test", "Calle Test",
+            ubicacion, "601");
         Incidente derivado = new Incidente(
             "i-estado-003", TipoIncidente.ABUSO_INFANTIL,
             "Ya derivado", ubicacion, denunciante);
+        derivado.derivarACAI(caiDerivado);
         repository.guardar(derivado);
-        repository.actualizarEstado("i-estado-003", EstadoIncidente.DERIVADO_A_CAI);
 
         List<Incidente> creados = repository.buscarPorEstado(EstadoIncidente.CREADO);
 

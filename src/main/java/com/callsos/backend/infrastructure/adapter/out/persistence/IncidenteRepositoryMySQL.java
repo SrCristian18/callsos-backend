@@ -91,12 +91,6 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
     }
 
     @Override
-    public void actualizarEstado(String id, EstadoIncidente estado) {
-        jdbc.update("UPDATE incidentes SET estado = ? WHERE id = ?",
-            estado.name(), id);
-    }
-
-    @Override
     public List<Incidente> buscarPorDenunciante(String denuncianteId) {
         List<Incidente> lista = jdbc.query(
             BASE_SQL + " WHERE i.denunciante_id = ? ORDER BY i.fecha_hora DESC",
