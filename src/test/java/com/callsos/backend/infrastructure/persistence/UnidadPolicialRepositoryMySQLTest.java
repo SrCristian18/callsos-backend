@@ -143,4 +143,31 @@ class UnidadPolicialRepositoryMySQLTest {
         assertFalse(Double.isNaN(cai.getUbicacion().getLongitud()),
             "longitud no debe ser NaN");
     }
+
+    // ── Épica 8 (hallazgo #6, Parte 1) ──────────────────────────────────
+
+    @Test
+    @DisplayName("buscarPorId lee el correo cuando está presente en BD")
+    void buscarPorIdLeeCorreo() {
+        jdbc.update("""
+            INSERT INTO unidades_policiales (id, nombre, direccion, latitud, longitud, telefono, correo)
+            VALUES ('cai-con-correo-001', 'CAI Con Correo', 'Test', 10.4, -75.5, '444', 'cai.correo@callsos.test')
+            """);
+
+        Optional<UnidadPolicial> resultado = repository.buscarPorId("cai-con-correo-001");
+
+        assertTrue(resultado.isPresent());
+        assertEquals("cai.correo@callsos.test", resultado.get().getCorreo());
+    }
+
+    @Test
+    @DisplayName("CAI sembrado sin correo (nunca tuvo flujo de registro) se lee como null sin lanzar")
+    void caiSinCorreoSeLeeComoNull() {
+        // Los CAIs insertados en insertarCaisDeTest() no incluyen correo —
+        // mismo caso que las filas de 02_data.sql en producción.
+        Optional<UnidadPolicial> resultado = repository.buscarPorId("cai-sur-001");
+
+        assertTrue(resultado.isPresent());
+        assertNull(resultado.get().getCorreo());
+    }
 }

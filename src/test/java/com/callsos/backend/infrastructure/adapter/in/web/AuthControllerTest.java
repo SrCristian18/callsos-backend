@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -121,6 +122,7 @@ class AuthControllerTest {
               "apellido": "Nueva",
               "documento": "1009999999",
               "telefono": "3009999999",
+              "correo": "ana.nueva@callsos.test",
               "password": "Password123",
               "confirmarPassword": "Password123"
             }
@@ -145,6 +147,7 @@ class AuthControllerTest {
               "apellido": "Nueva",
               "documento": "1009999999",
               "telefono": "3009999999",
+              "correo": "ana.nueva@callsos.test",
               "password": "Password123",
               "confirmarPassword": "OtraCosa456"
             }
@@ -154,6 +157,51 @@ class AuthControllerTest {
                 .contentType("application/json")
                 .content(body))
             .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("POST /registro/denunciante sin correo (Épica 8, hallazgo #6, Parte 1) retorna 400")
+    void registroDenuncianteSinCorreo() throws Exception {
+        String body = """
+            {
+              "nombre": "Ana",
+              "apellido": "Nueva",
+              "documento": "1009999999",
+              "telefono": "3009999999",
+              "password": "Password123",
+              "confirmarPassword": "Password123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/registro/denunciante")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(registrarDenunciantePort);
+    }
+
+    @Test
+    @DisplayName("POST /registro/denunciante con correo con formato inválido retorna 400")
+    void registroDenuncianteCorreoInvalido() throws Exception {
+        String body = """
+            {
+              "nombre": "Ana",
+              "apellido": "Nueva",
+              "documento": "1009999999",
+              "telefono": "3009999999",
+              "correo": "esto-no-es-un-correo",
+              "password": "Password123",
+              "confirmarPassword": "Password123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/registro/denunciante")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(registrarDenunciantePort);
     }
 
     @Test
@@ -168,6 +216,7 @@ class AuthControllerTest {
               "token": "token-invitacion-xyz",
               "nombre": "Pedro Nuevo",
               "telefono": "3008888888",
+              "correo": "pedro.nuevo@callsos.test",
               "username": "pedro.nuevo",
               "password": "Password123",
               "confirmarPassword": "Password123"
@@ -192,6 +241,7 @@ class AuthControllerTest {
               "token": "token-vencido",
               "nombre": "Pedro Nuevo",
               "telefono": "3008888888",
+              "correo": "pedro.nuevo@callsos.test",
               "username": "pedro.nuevo",
               "password": "Password123",
               "confirmarPassword": "Password123"
@@ -202,5 +252,27 @@ class AuthControllerTest {
                 .contentType("application/json")
                 .content(body))
             .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("POST /registro/agente sin correo (Épica 8, hallazgo #6, Parte 1) retorna 400")
+    void registroAgenteSinCorreo() throws Exception {
+        String body = """
+            {
+              "token": "token-invitacion-xyz",
+              "nombre": "Pedro Nuevo",
+              "telefono": "3008888888",
+              "username": "pedro.nuevo",
+              "password": "Password123",
+              "confirmarPassword": "Password123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/registro/agente")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(registrarAgentePort);
     }
 }

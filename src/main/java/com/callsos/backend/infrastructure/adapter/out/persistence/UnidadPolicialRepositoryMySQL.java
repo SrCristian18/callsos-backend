@@ -41,7 +41,7 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
     @Override
     public Optional<UnidadPolicial> buscarPorUbicacion(Ubicacion ubicacion) {
         String sql = """
-            SELECT id, nombre, direccion, latitud, longitud, telefono, token_fcm,
+            SELECT id, nombre, direccion, latitud, longitud, telefono, correo, token_fcm,
                    (6371 * ACOS(
                        COS(RADIANS(?)) * COS(RADIANS(latitud)) *
                        COS(RADIANS(longitud) - RADIANS(?)) +
@@ -63,7 +63,7 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
     @Override
     public Optional<UnidadPolicial> buscarPorId(String id) {
         String sql = """
-            SELECT id, nombre, direccion, latitud, longitud, telefono, token_fcm
+            SELECT id, nombre, direccion, latitud, longitud, telefono, correo, token_fcm
             FROM unidades_policiales
             WHERE id = ?
             """;
@@ -90,6 +90,7 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
                 rs.getString("telefono")
             );
             unidad.setTokenFcm(rs.getString("token_fcm"));
+            unidad.setCorreo(rs.getString("correo"));
             return unidad;
         }
     }
