@@ -67,12 +67,13 @@ public class SecurityConfig {
                 // IMPORTANTE: Spring Security usa la PRIMERA regla que hace
                 // match (no evalúa todas). Como "/api/v1/incidentes/*" (un
                 // solo comodín) coincide igual con un {id} real que con
-                // "/mis-incidentes", "/asignados", "/por-cai" o
-                // "/por-estado", estas rutas de colección deben declararse
-                // ANTES que el comodín genérico de {id}, o su restricción
-                // de rol nunca se aplica (bug ya presente: las 3 reglas de
-                // abajo estaban después del comodín y por lo tanto eran
-                // inalcanzables — cualquier rol autenticado podía usarlas).
+                // "/mis-incidentes", "/asignados", "/por-cai",
+                // "/por-estado" o "/derivados", estas rutas de colección
+                // deben declararse ANTES que el comodín genérico de {id},
+                // o su restricción de rol nunca se aplica (bug ya
+                // presente: las 3 reglas de abajo estaban después del
+                // comodín y por lo tanto eran inalcanzables — cualquier
+                // rol autenticado podía usarlas).
                 .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/mis-incidentes")
                     .hasRole("DENUNCIANTE")
                 .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/asignados")
@@ -81,6 +82,8 @@ public class SecurityConfig {
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
                 .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/por-estado")
                     .hasAnyRole("COMANDO", "OPERADOR_CAI")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidentes/derivados")
+                    .hasRole("COMANDO")
                 .requestMatchers(HttpMethod.GET, "/api/v1/cais/*/agentes/disponibles")
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
                 .requestMatchers(HttpMethod.POST, "/api/v1/invitaciones")

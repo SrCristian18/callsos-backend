@@ -263,6 +263,17 @@ public class ApplicationConfig {
     }
 
     /**
+     * EPIC-18 (frontend) / hallazgo #14 — historial de derivaciones para
+     * el tab "Delegados" de Comando. Ver
+     * {@link ConsultarIncidentesDerivadosPort} para el detalle.
+     */
+    @Bean
+    public ConsultarIncidentesDerivadosPort consultarIncidentesDerivadosPort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new ConsultarIncidentesDerivadosService(incidenteRepo);
+    }
+
+    /**
      * Épica 1 — el denunciante actualiza el tipo de su incidente mientras
      * está activo. Ownership + regla de estado se validan dentro del
      * servicio/agregado, no aquí.

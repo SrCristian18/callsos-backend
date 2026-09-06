@@ -40,6 +40,8 @@ import java.util.List;
  *   GET    /mis-incidentes    → historial del denunciante autenticado
  *   GET    /asignados         → cola de trabajo del agente autenticado
  *   GET    /por-cai           → panel de operaciones del CAI
+ *   GET    /por-estado        → listado de Comando/CAI, por estado
+ *   GET    /derivados         → historial de derivaciones de Comando (EPIC-18)
  */
 @RestController
 @RequestMapping("/api/v1/incidentes")
@@ -53,6 +55,7 @@ public class IncidenteController {
     private final ConsultarIncidentesAsignadosPort consultarAsignados;
     private final ConsultarIncidentesPorCAIPort consultarPorCAI;
     private final ConsultarIncidentesPorEstadoPort consultarPorEstado;
+    private final ConsultarIncidentesDerivadosPort consultarDerivados;
     private final AsignarCAIAIncidentePort asignarCAI;
     private final AsignarAgentePort asignarAgente;
     private final MarcarAgenteEnCaminoPort marcarEnCamino;
@@ -75,6 +78,7 @@ public class IncidenteController {
             ConsultarIncidentesAsignadosPort consultarAsignados,
             ConsultarIncidentesPorCAIPort consultarPorCAI,
             ConsultarIncidentesPorEstadoPort consultarPorEstado,
+            ConsultarIncidentesDerivadosPort consultarDerivados,
             AsignarCAIAIncidentePort asignarCAI,
             AsignarAgentePort asignarAgente,
             MarcarAgenteEnCaminoPort marcarEnCamino,
@@ -92,6 +96,7 @@ public class IncidenteController {
         this.consultarAsignados    = consultarAsignados;
         this.consultarPorCAI       = consultarPorCAI;
         this.consultarPorEstado    = consultarPorEstado;
+        this.consultarDerivados    = consultarDerivados;
         this.asignarCAI            = asignarCAI;
         this.asignarAgente         = asignarAgente;
         this.marcarEnCamino        = marcarEnCamino;
@@ -179,6 +184,29 @@ public class IncidenteController {
     public ResponseEntity<List<IncidenteResponse>> porEstado(
             @RequestParam EstadoIncidente estado) {
         List<Incidente> incidentes = consultarPorEstado.ejecutar(estado);
+        return ResponseEntity.ok(IncidenteMapper.toResponseList(incidentes));
+    }
+
+    /**
+     * GET /derivados — historial completo de derivaciones, para el tab
+     * "Delegados" de Comando.
+     *
+     * EPIC-18 (frontend) / hallazgo #14 de la auditoría UX/UI: antes de
+     * este endpoint, Comando solo podía consultar `por-estado?estado=
+     * CREADO` (lo pendiente de derivar) — un incidente ya derivado
+     * dejaba de ser visible en cualquier lista. Ver el comentario de
+     * {@link ConsultarIncidentesDerivadosPort} para el criterio exacto
+     * de qué cuenta como "derivado".
+     *
+     * Solo COMANDO — a diferencia de `/por-estado` (que también usa
+     * OPERADOR_CAI para su propio panel), este historial es
+     * específicamente la vista de Comando sobre TODO lo que ya derivó,
+     * sin importar a qué CAI. OPERADOR_CAI ya tiene su propia vista
+     * equivalente vía `/por-cai`.
+     */
+    @GetMapping("/derivados")
+    public ResponseEntity<List<IncidenteResponse>> derivados() {
+        List<Incidente> incidentes = consultarDerivados.ejecutar();
         return ResponseEntity.ok(IncidenteMapper.toResponseList(incidentes));
     }
 

@@ -62,6 +62,11 @@ class IncidenteControllerTest {
     @MockBean private ConsultarIncidentesAsignadosPort consultarAsignados;
     @MockBean private ConsultarIncidentesPorCAIPort consultarPorCAI;
     @MockBean private ConsultarIncidentesPorEstadoPort consultarPorEstado;
+    // EPIC-18 (frontend) / hallazgo #14 — sin este @MockBean el
+    // ApplicationContext de este slice test no carga (mismo motivo que
+    // el FIX de simularRecorrido más abajo: el controller ahora
+    // requiere este puerto en su constructor).
+    @MockBean private ConsultarIncidentesDerivadosPort consultarDerivados;
     @MockBean private AsignarCAIAIncidentePort asignarCAI;
     @MockBean private AsignarAgentePort asignarAgente;
     @MockBean private MarcarAgenteEnCaminoPort marcarEnCamino;
@@ -228,6 +233,44 @@ class IncidenteControllerTest {
             .andExpect(status().isOk());
 
         verify(consultarPorEstado).ejecutar(EstadoIncidente.CREADO);
+    }
+
+    @Test
+    @DisplayName("GET /derivados devuelve el historial completo, visible para COMANDO")
+    void derivadosComoComando() throws Exception {
+        when(consultarDerivados.ejecutar()).thenReturn(List.of(incidenteDeEjemplo()));
+
+        mockMvc.perform(get("/api/v1/incidentes/derivados")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value("i-001"));
+
+        verify(consultarDerivados).ejecutar();
+    }
+
+    @Test
+    @DisplayName("GET /derivados NO es visible para OPERADOR_CAI (a diferencia de /por-estado) ni para otros roles")
+    void derivadosRechazaOtrosRoles() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/derivados")
+                .with(authentication(actor("cai-001", "OPERADOR_CAI"))))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/incidentes/derivados")
+                .with(authentication(actor("ag-001", "AGENTE"))))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/incidentes/derivados")
+                .with(authentication(actor("den-001", "DENUNCIANTE"))))
+            .andExpect(status().isForbidden());
+
+        verify(consultarDerivados, never()).ejecutar();
+    }
+
+    @Test
+    @DisplayName("GET /derivados sin autenticación retorna 401")
+    void derivadosSinAutenticacion() throws Exception {
+        mockMvc.perform(get("/api/v1/incidentes/derivados"))
+            .andExpect(status().isUnauthorized());
     }
 
     // ── Mutaciones de estado ──────────────────────────────────────────────────

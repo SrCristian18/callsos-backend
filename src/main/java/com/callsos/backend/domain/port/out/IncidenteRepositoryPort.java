@@ -64,4 +64,28 @@ public interface IncidenteRepositoryPort {
      * Usado por ConsultarIncidentesPorEstadoPort (caso de uso de COMANDO).
      */
     List<Incidente> buscarPorEstado(EstadoIncidente estado);
+
+    /**
+     * Historial completo de derivaciones — todo incidente que en algún
+     * momento fue asignado a una UnidadPolicial, sin importar su estado
+     * actual (activo, finalizado o cancelado).
+     *
+     * EPIC-18 (frontend) / hallazgo #14: resuelve el gap documentado en
+     * deuda_backend.md — antes de esto, `buscarPorEstado(CREADO)` era lo
+     * único que Comando podía consultar; en cuanto un incidente se
+     * derivaba, desaparecía de su visibilidad por completo.
+     *
+     * Filtra por `unidad_policial_id IS NOT NULL` en vez de
+     * `estado != CREADO` a propósito: un incidente puede pasar de CREADO
+     * a CANCELADO directamente (el denunciante puede cancelar "desde
+     * cualquier estado activo" — ver Incidente.cancelar()), SIN haber
+     * sido derivado nunca. Ese caso debe seguir apareciendo en
+     * "Reportados" (o desaparecer sin más, si se cancela), nunca en
+     * "Delegados" — `unidad_policial_id` es el único campo que
+     * distingue "llegó a tener un CAI asignado" de "nunca lo tuvo",
+     * y una vez seteado (en AsignarCAIAIncidenteService.ejecutar())
+     * `guardar()` nunca lo vuelve a limpiar, así que el historial se
+     * conserva aunque el incidente termine cancelado o finalizado.
+     */
+    List<Incidente> buscarDerivados();
 }
