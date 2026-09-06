@@ -212,4 +212,73 @@ class IncidenteRepositoryMySQLTest {
         assertTrue(lista.stream().allMatch(i ->
             i.getEstado() == EstadoIncidente.EN_ATENCION));
     }
+
+    // ── buscarDerivados (EPIC-18 frontend / hallazgo #14) ──────────────
+
+    @Test
+    @DisplayName("buscarDerivados — incluye derivados activos y derivados luego cancelados/finalizados")
+    void buscarDerivadosIncluyeCualquierEstadoPosteriorALaDerivacion() {
+        UnidadPolicial cai = new UnidadPolicial(
+            "cai-test-derivados-001", "CAI Test Derivados", "Calle Test",
+            ubicacion, "601");
+
+        // Derivado, todavía activo (DERIVADO_A_CAI).
+        Incidente derivadoActivo = new Incidente(
+            "i-derivado-001", TipoIncidente.ROBOS_O_ASALTOS,
+            "Derivado activo", ubicacion, denunciante);
+        derivadoActivo.derivarACAI(cai);
+        repository.guardar(derivadoActivo);
+
+        // Derivado y LUEGO cancelado — sigue teniendo unidad_policial_id
+        // seteado (guardar() nunca lo limpia), así que debe seguir
+        // apareciendo en el historial de derivaciones.
+        Incidente derivadoYCancelado = new Incidente(
+            "i-derivado-002", TipoIncidente.RIÑAS_O_PELEAS,
+            "Derivado y cancelado", ubicacion, denunciante);
+        derivadoYCancelado.derivarACAI(cai);
+        derivadoYCancelado.cancelar();
+        repository.guardar(derivadoYCancelado);
+
+        List<Incidente> derivados = repository.buscarDerivados();
+
+        assertTrue(derivados.stream().anyMatch(i -> i.getId().equals("i-derivado-001")));
+        assertTrue(derivados.stream().anyMatch(i -> i.getId().equals("i-derivado-002")),
+            "Un incidente cancelado DESPUÉS de haber sido derivado debe seguir "
+            + "en el historial de derivaciones — la cancelación no borra que "
+            + "alguna vez tuvo un CAI asignado");
+        assertTrue(derivados.stream().allMatch(i -> i.getUnidadPolicial() != null),
+            "Todo resultado de buscarDerivados() debe tener una unidad policial asignada");
+    }
+
+    @Test
+    @DisplayName("buscarDerivados — NO incluye un incidente cancelado directamente desde CREADO (nunca derivado)")
+    void buscarDerivadosExcluyeCanceladoSinDerivar() {
+        // CREADO → CANCELADO directo, sin pasar por derivarACAI() — el
+        // denunciante puede cancelar "desde cualquier estado activo"
+        // (Incidente.cancelar()), y CREADO es un estado activo.
+        Incidente canceladoSinDerivar = new Incidente(
+            "i-derivado-003-sin-derivar", TipoIncidente.RUIDO_EXCESIVO,
+            "Cancelado sin derivar", ubicacion, denunciante);
+        canceladoSinDerivar.cancelar();
+        repository.guardar(canceladoSinDerivar);
+
+        List<Incidente> derivados = repository.buscarDerivados();
+
+        assertTrue(derivados.stream().noneMatch(
+            i -> i.getId().equals("i-derivado-003-sin-derivar")),
+            "Un incidente que nunca tuvo CAI asignado no es un \"derivado\", "
+            + "aunque haya terminado en CANCELADO");
+    }
+
+    @Test
+    @DisplayName("buscarDerivados retorna vacío si nunca se derivó nada (no explota con NULLs)")
+    void buscarDerivadosVacioNoRompeConDatosLimpios() {
+        // No inserta nada nuevo — solo confirma que el método no lanza
+        // sobre una tabla sin incidentes derivados. En una BD compartida
+        // entre tests puede haber datos de otros @Test (igual que
+        // buscarPorEstadoVacio, arriba), así que la única aserción segura
+        // es el invariante, no isEmpty().
+        List<Incidente> derivados = repository.buscarDerivados();
+        assertTrue(derivados.stream().allMatch(i -> i.getUnidadPolicial() != null));
+    }
 }

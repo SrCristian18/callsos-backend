@@ -210,6 +210,21 @@ public class IncidenteRepositoryMySQL implements IncidenteRepositoryPort {
         return lista;
     }
 
+    @Override
+    public List<Incidente> buscarDerivados() {
+        // Ver el comentario de la interfaz (IncidenteRepositoryPort) para
+        // por qué es `unidad_policial_id IS NOT NULL` y no
+        // `estado != 'CREADO'`.
+        List<Incidente> lista = jdbc.query(
+            BASE_SQL + """
+             WHERE i.unidad_policial_id IS NOT NULL
+             ORDER BY i.fecha_hora DESC
+            """,
+            new IncidenteRowMapper());
+        lista.forEach(this::cargarDenuncia);
+        return lista;
+    }
+
     private class IncidenteRowMapper implements RowMapper<Incidente> {
         @Override
         public Incidente mapRow(ResultSet rs, int rowNum) throws SQLException {
