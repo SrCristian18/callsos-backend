@@ -7,6 +7,8 @@ package com.callsos.backend.infrastructure.adapter.in.web;
 import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.domain.port.in.RegistrarAgenteConInvitacionPort;
 import com.callsos.backend.domain.port.in.RegistrarDenunciantePort;
+import com.callsos.backend.domain.port.in.ResetearPasswordPort;
+import com.callsos.backend.domain.port.in.SolicitarReseteoPasswordPort;
 import com.callsos.backend.infrastructure.config.CorsConfig;
 import com.callsos.backend.infrastructure.config.SecurityConfig;
 import com.callsos.backend.infrastructure.config.security.JwtAuthFilter;
@@ -22,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -59,6 +62,8 @@ class AuthControllerTest {
     @MockBean private LoginPort loginPort;
     @MockBean private RegistrarDenunciantePort registrarDenunciantePort;
     @MockBean private RegistrarAgenteConInvitacionPort registrarAgentePort;
+    @MockBean private SolicitarReseteoPasswordPort solicitarReseteoPort;
+    @MockBean private ResetearPasswordPort resetearPasswordPort;
 
     @Test
     @DisplayName("POST /login exitoso retorna 200 con el token y los datos del actor")
@@ -274,5 +279,142 @@ class AuthControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(registrarAgentePort);
+    }
+
+    // ── Épica 8 (hallazgo #6, Parte 2) — recuperación de contraseña ─────────
+
+    @Test
+    @DisplayName("POST /recuperar-password con correo existente retorna 200 con mensaje genérico")
+    void recuperarPasswordCorreoExistente() throws Exception {
+        String body = """
+            { "correo": "juan.perez@callsos.test" }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/recuperar-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mensaje").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "POST /recuperar-password con correo INEXISTENTE retorna el MISMO 200 y mensaje "
+        + "genérico (anti-enumeración de cuentas) — no debe revelar que el correo no existe")
+    void recuperarPasswordCorreoInexistenteRespondeIgual() throws Exception {
+        String body = """
+            { "correo": "no-existe@callsos.test" }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/recuperar-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mensaje").value(
+                "Si el correo ingresado está registrado, recibirás un código "
+                + "de verificación para restablecer tu contraseña."));
+    }
+
+    @Test
+    @DisplayName("POST /recuperar-password sin correo retorna 400")
+    void recuperarPasswordSinCorreo() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/recuperar-password")
+                .contentType("application/json")
+                .content("{}"))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(solicitarReseteoPort);
+    }
+
+    @Test
+    @DisplayName("POST /recuperar-password con formato de correo inválido retorna 400")
+    void recuperarPasswordCorreoInvalido() throws Exception {
+        String body = """
+            { "correo": "esto-no-es-un-correo" }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/recuperar-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(solicitarReseteoPort);
+    }
+
+    @Test
+    @DisplayName("POST /resetear-password con token vigente retorna 200")
+    void resetearPasswordExitoso() throws Exception {
+        String body = """
+            {
+              "token": "token-reseteo-abc123",
+              "nuevaPassword": "NuevaPassword123",
+              "confirmarPassword": "NuevaPassword123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/resetear-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mensaje").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("POST /resetear-password con token inválido/expirado retorna 422")
+    void resetearPasswordTokenInvalido() throws Exception {
+        doThrow(new IllegalStateException(
+                "El token de reseteo no existe o ya no es válido."))
+            .when(resetearPasswordPort).ejecutar(any(), any(), any());
+
+        String body = """
+            {
+              "token": "token-vencido",
+              "nuevaPassword": "NuevaPassword123",
+              "confirmarPassword": "NuevaPassword123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/resetear-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("POST /resetear-password con contraseñas que no coinciden retorna 422")
+    void resetearPasswordPasswordsNoCoinciden() throws Exception {
+        doThrow(new IllegalStateException("Las contraseñas no coinciden."))
+            .when(resetearPasswordPort).ejecutar(any(), any(), any());
+
+        String body = """
+            {
+              "token": "token-reseteo-abc123",
+              "nuevaPassword": "NuevaPassword123",
+              "confirmarPassword": "OtraCosa456"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/resetear-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("POST /resetear-password sin token retorna 400")
+    void resetearPasswordSinToken() throws Exception {
+        String body = """
+            {
+              "nuevaPassword": "NuevaPassword123",
+              "confirmarPassword": "NuevaPassword123"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/resetear-password")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(resetearPasswordPort);
     }
 }

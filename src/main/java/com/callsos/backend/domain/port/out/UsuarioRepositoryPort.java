@@ -31,6 +31,18 @@ public interface UsuarioRepositoryPort {
      */
     void guardar(String id, String username, String nombre, String passwordHash,
                  String rol, String actorId);
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): actualiza el hash de password de la
+     * cuenta asociada a actorId — usado por ResetearPasswordService tras
+     * validar un token de reseteo vigente. El password ya debe venir
+     * hasheado con BCrypt — este puerto no hashea (mismo criterio que
+     * guardar()).
+     *
+     * @param actorId          denunciante_id / agente_id / unidad_policial_id
+     * @param nuevoPasswordHash  hash BCrypt de la nueva contraseña
+     */
+    void actualizarPassword(String actorId, String nuevoPasswordHash);
  
     /**
      * Datos de autenticación de un usuario.

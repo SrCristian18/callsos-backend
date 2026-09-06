@@ -85,4 +85,22 @@ public class DenuncianteRepositoryMySQLTest {
  
         assertEquals("token-nuevo", tokenFinal);
     }
+
+    // ── Épica 8 (hallazgo #6, Parte 2) ──────────────────────────────────
+
+    @Test
+    @DisplayName("buscarPorCorreo encuentra al denunciante sembrado por su correo")
+    void buscarPorCorreoEncuentra() {
+        Optional<Denunciante> resultado =
+            repository.buscarPorCorreo("juan@test.com");
+
+        assertTrue(resultado.isPresent());
+        assertEquals("den-test-001", resultado.get().getId());
+    }
+
+    @Test
+    @DisplayName("buscarPorCorreo retorna vacío si ningún denunciante tiene ese correo")
+    void buscarPorCorreoInexistente() {
+        assertTrue(repository.buscarPorCorreo("no-existe@callsos.test").isEmpty());
+    }
 }

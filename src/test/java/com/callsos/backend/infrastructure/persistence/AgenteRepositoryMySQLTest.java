@@ -125,4 +125,25 @@ class AgenteRepositoryMySQLTest {
 
         assertNull(sembrado.getCorreo());
     }
+
+    @Test
+    @DisplayName("buscarPorCorreo encuentra un agente recién guardado por su correo")
+    void buscarPorCorreoEncuentra() {
+        Agente nuevo = new Agente(
+            "ag-test-correo-002", "Otro Agente", "Calle X",
+            null, "3005552222");
+        nuevo.setCorreo("otro.agente@callsos.test");
+        repository.guardar(nuevo, "cai-test-001");
+
+        Optional<Agente> encontrado = repository.buscarPorCorreo("otro.agente@callsos.test");
+
+        assertTrue(encontrado.isPresent());
+        assertEquals("ag-test-correo-002", encontrado.get().getId());
+    }
+
+    @Test
+    @DisplayName("buscarPorCorreo retorna vacío si ningún agente tiene ese correo")
+    void buscarPorCorreoInexistente() {
+        assertTrue(repository.buscarPorCorreo("no-existe@callsos.test").isEmpty());
+    }
 }

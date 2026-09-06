@@ -170,4 +170,24 @@ class UnidadPolicialRepositoryMySQLTest {
         assertTrue(resultado.isPresent());
         assertNull(resultado.get().getCorreo());
     }
+
+    @Test
+    @DisplayName("buscarPorCorreo encuentra la unidad por su correo")
+    void buscarPorCorreoEncuentra() {
+        jdbc.update("""
+            INSERT INTO unidades_policiales (id, nombre, direccion, latitud, longitud, telefono, correo)
+            VALUES ('cai-buscar-correo-001', 'CAI Buscar Correo', 'Test', 10.4, -75.5, '444', 'cai.buscar@callsos.test')
+            """);
+
+        Optional<UnidadPolicial> resultado = repository.buscarPorCorreo("cai.buscar@callsos.test");
+
+        assertTrue(resultado.isPresent());
+        assertEquals("cai-buscar-correo-001", resultado.get().getId());
+    }
+
+    @Test
+    @DisplayName("buscarPorCorreo retorna vacío si ninguna unidad tiene ese correo")
+    void buscarPorCorreoInexistente() {
+        assertTrue(repository.buscarPorCorreo("no-existe@callsos.test").isEmpty());
+    }
 }

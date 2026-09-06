@@ -44,6 +44,24 @@ public class AgenteRepositoryMySQL implements AgenteRepositoryPort{
             """;
         return jdbc.query(sql, new AgenteRowMapper());
     }
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): busca un agente por su correo —
+     * primer paso del flujo de recuperación de contraseña. A diferencia
+     * de las demás consultas de este repositorio, no filtra por estado
+     * DISPONIBLE: un agente OCUPADO también debe poder recuperar su
+     * contraseña.
+     */
+    @Override
+    public Optional<Agente> buscarPorCorreo(String correo) {
+        String sql = """
+            SELECT id, nombre, direccion, telefono, correo, latitud, longitud, estado, token_fcm
+            FROM agentes
+            WHERE correo = ?
+            """;
+        return jdbc.query(sql, new AgenteRowMapper(), correo)
+            .stream().findFirst();
+    }
  
     /**
      * FIX del bug contains(): el filtro es SQL → compara IDs en BD,
