@@ -71,4 +71,19 @@ public class UsuarioRepositoryMySQL implements UsuarioRepositoryPort{
             id, username, nombre, passwordHash, rol, actorId
         );
     }
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): actualiza el hash de password tras
+     * un reseteo exitoso. No filtra por activo = TRUE a propósito — si
+     * una cuenta fue desactivada, ResetearPasswordService igual debe
+     * poder completar la operación (la desactivación es un problema de
+     * autorización de LOGIN, no de titularidad de la cuenta).
+     */
+    @Override
+    public void actualizarPassword(String actorId, String nuevoPasswordHash) {
+        jdbc.update(
+            "UPDATE usuarios SET password = ? WHERE actor_id = ?",
+            nuevoPasswordHash, actorId
+        );
+    }
 }

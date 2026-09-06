@@ -46,6 +46,17 @@ CREATE TABLE IF NOT EXISTS invitaciones_agente (
     PRIMARY KEY (token)
 );
 
+-- Épica 8 (hallazgo #6, Parte 2)
+CREATE TABLE IF NOT EXISTS tokens_reseteo_password (
+    token             VARCHAR(64)  NOT NULL,
+    actor_id          VARCHAR(36)  NOT NULL,
+    fecha_creacion    TIMESTAMP    NOT NULL,
+    fecha_expiracion  TIMESTAMP    NOT NULL,
+    usado             BOOLEAN      NOT NULL DEFAULT FALSE,
+    fecha_uso         TIMESTAMP,
+    PRIMARY KEY (token)
+);
+
 CREATE TABLE IF NOT EXISTS agentes (
     id                 VARCHAR(36)  NOT NULL,
     nombre             VARCHAR(100) NOT NULL,

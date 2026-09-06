@@ -87,6 +87,37 @@ public class ApplicationConfig {
             InvitacionAgenteRepositoryPort invitacionRepo) {
         return new GenerarInvitacionAgenteService(invitacionRepo);
     }
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): busca el correo en las 3 tablas de
+     * dominio con correo (denunciantes, agentes, unidades_policiales) y,
+     * si lo encuentra, genera un token de reseteo y lo envía por correo
+     * vía EnviarCorreoPort (hoy, EnviarCorreoLogAdapter — ver su
+     * docstring).
+     */
+    @Bean
+    public SolicitarReseteoPasswordPort solicitarReseteoPasswordPort(
+            DenuncianteRepositoryPort denuncianteRepo,
+            AgenteRepositoryPort agenteRepo,
+            UnidadPolicialRepositoryPort unidadPolicialRepo,
+            TokenReseteoPasswordRepositoryPort tokenRepo,
+            EnviarCorreoPort enviarCorreo) {
+        return new SolicitarReseteoPasswordService(
+            denuncianteRepo, agenteRepo, unidadPolicialRepo, tokenRepo, enviarCorreo);
+    }
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): valida el token de reseteo y
+     * actualiza el hash de password en `usuarios` para el actorId
+     * asociado a ese token.
+     */
+    @Bean
+    public ResetearPasswordPort resetearPasswordPort(
+            TokenReseteoPasswordRepositoryPort tokenRepo,
+            UsuarioRepositoryPort usuarioRepo,
+            PasswordEncoder passwordEncoder) {
+        return new ResetearPasswordService(tokenRepo, usuarioRepo, passwordEncoder);
+    }
  
     // ── Incidente ──────────────────────────────────────────────────────────
  
@@ -260,17 +291,6 @@ public class ApplicationConfig {
     public ConsultarIncidentesPorEstadoPort consultarIncidentesPorEstadoPort(
             IncidenteRepositoryPort incidenteRepo) {
         return new ConsultarIncidentesPorEstadoService(incidenteRepo);
-    }
-
-    /**
-     * EPIC-18 (frontend) / hallazgo #14 — historial de derivaciones para
-     * el tab "Delegados" de Comando. Ver
-     * {@link ConsultarIncidentesDerivadosPort} para el detalle.
-     */
-    @Bean
-    public ConsultarIncidentesDerivadosPort consultarIncidentesDerivadosPort(
-            IncidenteRepositoryPort incidenteRepo) {
-        return new ConsultarIncidentesDerivadosService(incidenteRepo);
     }
 
     /**

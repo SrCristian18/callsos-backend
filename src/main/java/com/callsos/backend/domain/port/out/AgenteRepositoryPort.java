@@ -21,6 +21,13 @@ public interface AgenteRepositoryPort {
     
     /** Todos los agentes en estado DISPONIBLE (cualquier unidad). */
     List<Agente> obtenerDisponibles();
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): busca un agente por su correo —
+     * primer paso del flujo de recuperación de contraseña. No lanza si
+     * no hay coincidencia; retorna Optional.empty().
+     */
+    Optional<Agente> buscarPorCorreo(String correo);
  
     /**
      * Agentes DISPONIBLES filtrados por unidad policial.

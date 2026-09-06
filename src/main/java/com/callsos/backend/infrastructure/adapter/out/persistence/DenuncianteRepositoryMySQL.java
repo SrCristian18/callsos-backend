@@ -39,6 +39,17 @@ public class DenuncianteRepositoryMySQL implements DenuncianteRepositoryPort {
         return jdbc.query(sql, new DenuncianteRowMapper(), id)
             .stream().findFirst();
     }
+
+    @Override
+    public Optional<Denunciante> buscarPorCorreo(String correo) {
+        String sql = """
+            SELECT id, nombre, documento, origen, telefono, correo, token_fcm
+            FROM denunciantes
+            WHERE correo = ?
+            """;
+        return jdbc.query(sql, new DenuncianteRowMapper(), correo)
+            .stream().findFirst();
+    }
     
     /**
      * Actualiza el token FCM en BD.

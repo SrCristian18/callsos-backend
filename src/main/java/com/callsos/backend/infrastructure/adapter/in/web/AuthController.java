@@ -12,10 +12,15 @@ package com.callsos.backend.infrastructure.adapter.in.web;
 import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.domain.port.in.RegistrarAgenteConInvitacionPort;
 import com.callsos.backend.domain.port.in.RegistrarDenunciantePort;
+import com.callsos.backend.domain.port.in.ResetearPasswordPort;
+import com.callsos.backend.domain.port.in.SolicitarReseteoPasswordPort;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.AuthRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.AuthResponse;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.MensajeResponse;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.RecuperarPasswordRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.RegistroAgenteRequest;
 import com.callsos.backend.infrastructure.adapter.in.web.dto.RegistroDenuncianteRequest;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.ResetearPasswordRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +42,15 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Ambos registros devuelven el mismo shape que /login (autologueo).
  *
+ * POST /api/v1/auth/recuperar-password — Épica 8 (hallazgo #6, Parte 2):
+ *   solicita un token de reseteo por correo. Responde 200 SIEMPRE con el
+ *   mismo mensaje genérico, exista o no una cuenta con ese correo — ver
+ *   docstring de SolicitarReseteoPasswordPort (anti-enumeración).
+ * POST /api/v1/auth/resetear-password — Épica 8 (hallazgo #6, Parte 2):
+ *   completa el reseteo con el token recibido por correo + la nueva
+ *   contraseña. 422 si el token es inválido/expirado o las contraseñas
+ *   no coinciden (IllegalStateException → GlobalExceptionHandler).
+ *
  * El token JWT se usa en Authorization: Bearer <token> en todos los demás endpoints.
  * actorId es el ID que Flutter necesita para identificarse (ej: registrar tokenFcm).
  */
@@ -47,13 +61,19 @@ public class AuthController {
     private final LoginPort loginPort;
     private final RegistrarDenunciantePort registrarDenunciantePort;
     private final RegistrarAgenteConInvitacionPort registrarAgentePort;
+    private final SolicitarReseteoPasswordPort solicitarReseteoPort;
+    private final ResetearPasswordPort resetearPasswordPort;
  
     public AuthController(LoginPort loginPort,
                            RegistrarDenunciantePort registrarDenunciantePort,
-                           RegistrarAgenteConInvitacionPort registrarAgentePort) {
+                           RegistrarAgenteConInvitacionPort registrarAgentePort,
+                           SolicitarReseteoPasswordPort solicitarReseteoPort,
+                           ResetearPasswordPort resetearPasswordPort) {
         this.loginPort                = loginPort;
         this.registrarDenunciantePort = registrarDenunciantePort;
         this.registrarAgentePort      = registrarAgentePort;
+        this.solicitarReseteoPort     = solicitarReseteoPort;
+        this.resetearPasswordPort     = resetearPasswordPort;
     }
  
     @PostMapping("/login")
@@ -107,5 +127,32 @@ public class AuthController {
 
         return ResponseEntity.ok(new AuthResponse(
             resultado.token(), resultado.actorId(), resultado.rol(), resultado.nombre()));
+    }
+
+    @PostMapping("/recuperar-password")
+    public ResponseEntity<MensajeResponse> recuperarPassword(
+            @Valid @RequestBody RecuperarPasswordRequest request) {
+
+        solicitarReseteoPort.ejecutar(request.getCorreo());
+
+        // Mensaje genérico SIEMPRE — exista o no una cuenta con ese
+        // correo (ver docstring de SolicitarReseteoPasswordPort).
+        return ResponseEntity.ok(new MensajeResponse(
+            "Si el correo ingresado está registrado, recibirás un código "
+            + "de verificación para restablecer tu contraseña."));
+    }
+
+    @PostMapping("/resetear-password")
+    public ResponseEntity<MensajeResponse> resetearPassword(
+            @Valid @RequestBody ResetearPasswordRequest request) {
+
+        resetearPasswordPort.ejecutar(
+            request.getToken(),
+            request.getNuevaPassword(),
+            request.getConfirmarPassword()
+        );
+
+        return ResponseEntity.ok(new MensajeResponse(
+            "Tu contraseña fue actualizada correctamente."));
     }
 }

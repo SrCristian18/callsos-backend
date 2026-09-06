@@ -71,6 +71,21 @@ public class UnidadPolicialRepositoryMySQL implements UnidadPolicialRepositoryPo
             .stream().findFirst();
     }
 
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): busca una unidad por su correo —
+     * primer paso del flujo de recuperación de contraseña.
+     */
+    @Override
+    public Optional<UnidadPolicial> buscarPorCorreo(String correo) {
+        String sql = """
+            SELECT id, nombre, direccion, latitud, longitud, telefono, correo, token_fcm
+            FROM unidades_policiales
+            WHERE correo = ?
+            """;
+        return jdbc.query(sql, new UnidadPolicialRowMapper(), correo)
+            .stream().findFirst();
+    }
+
     @Override
     public void actualizarTokenFcm(String unidadPolicialId, String tokenFcm) {
         jdbc.update(

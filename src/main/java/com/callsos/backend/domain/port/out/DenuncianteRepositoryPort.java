@@ -20,6 +20,14 @@ import java.util.Optional;
 public interface DenuncianteRepositoryPort {
     
     Optional<Denunciante> buscarPorId(String id);
+
+    /**
+     * Épica 8 (hallazgo #6, Parte 2): busca un denunciante por su correo
+     * — primer paso del flujo de recuperación de contraseña (encontrar
+     * a qué actorId corresponde el correo ingresado). No lanza si no
+     * hay coincidencia; retorna Optional.empty().
+     */
+    Optional<Denunciante> buscarPorCorreo(String correo);
     
     /**
      * Actualiza el token FCM del denunciante en BD.
