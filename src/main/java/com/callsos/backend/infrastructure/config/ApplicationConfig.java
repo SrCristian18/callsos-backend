@@ -294,6 +294,23 @@ public class ApplicationConfig {
     }
 
     /**
+     * EPIC-18 (frontend) / hallazgo #14 — historial de derivaciones para
+     * el tab "Delegados" de Comando. Ver
+     * {@link com.callsos.backend.domain.port.in.ConsultarIncidentesDerivadosPort}
+     * para el detalle.
+     *
+     * NOTA: este bean se había perdido al reemplazar ApplicationConfig.java
+     * completo con la entrega de la Épica 8 (hallazgo #6, Parte 2) — ambos
+     * cambios tocaban este archivo y el segundo sobrescribió al primero.
+     * Reinsertado sin modificar nada más.
+     */
+    @Bean
+    public com.callsos.backend.domain.port.in.ConsultarIncidentesDerivadosPort consultarIncidentesDerivadosPort(
+            IncidenteRepositoryPort incidenteRepo) {
+        return new com.callsos.backend.application.service.ConsultarIncidentesDerivadosService(incidenteRepo);
+    }
+
+    /**
      * Épica 1 — el denunciante actualiza el tipo de su incidente mientras
      * está activo. Ownership + regla de estado se validan dentro del
      * servicio/agregado, no aquí.
