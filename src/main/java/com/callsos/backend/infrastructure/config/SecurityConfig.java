@@ -3,8 +3,11 @@ package com.callsos.backend.infrastructure.config;
 import com.callsos.backend.infrastructure.config.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,6 +15,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import java.time.Instant;
 
 /**
  * Configuración de seguridad con JWT, roles y CORS.
@@ -47,11 +52,32 @@ public class SecurityConfig {
             // Sin este bloque, Spring Security devuelve 403 por defecto
             // para requests sin credenciales, lo que viola RFC 7235
             // (401 = no autenticado, 403 = autenticado pero sin permiso).
+            //
+            // FIX (auditoría AUD-1): tanto el 401 (falta de autenticación)
+            // como el 403 (autenticado sin el rol requerido) se resuelven
+            // ANTES de llegar a GlobalExceptionHandler, así que sin este
+            // fix el cliente recibía el body de error por defecto de
+            // Spring Boot ({"timestamp","status","error","path"}, sin
+            // "message" por la config por defecto de
+            // server.error.include-message=never) en vez del shape
+            // ProblemDetail ({"detail": "..."}) que
+            // ApiException._extraerDetail (Flutter) espera. No rompía la
+            // app — el frontend ya tiene un mensaje de fallback razonable
+            // para ambos casos — pero el mensaje explícito de este bloque
+            // nunca llegaba a la UI. Se unifica el formato de respuesta.
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) ->
-                    response.sendError(
-                        HttpServletResponse.SC_UNAUTHORIZED,
+                    escribirProblemDetail(
+                        request, response,
+                        HttpStatus.UNAUTHORIZED, "No autenticado",
                         "No autenticado — se requiere JWT válido"
+                    )
+                )
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                    escribirProblemDetail(
+                        request, response,
+                        HttpStatus.FORBIDDEN, "Acceso denegado",
+                        "No tienes permisos para realizar esta acción"
                     )
                 )
             )
@@ -159,5 +185,36 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Escribe un body JSON con el mismo shape que {@link
+     * com.callsos.backend.infrastructure.adapter.in.web.GlobalExceptionHandler}
+     * (RFC 7807 ProblemDetail) para los casos 401/403 resueltos por Spring
+     * Security ANTES de llegar a esa clase — ver comentario en
+     * {@link #securityFilterChain}.
+     *
+     * Se construye el JSON a mano (sin ProblemDetail/ObjectMapper) porque
+     * todos los valores son literales fijos de este método — nunca
+     * interpolan texto proveniente del request — así que no hay riesgo de
+     * inyección ni necesidad de un serializador completo para dos campos
+     * de texto conocidos.
+     */
+    private static void escribirProblemDetail(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            HttpStatus status,
+            String title,
+            String detail
+    ) throws java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(String.format(
+            "{\"type\":\"about:blank\",\"title\":\"%s\",\"status\":%d," +
+                "\"detail\":\"%s\",\"instance\":\"%s\",\"timestamp\":\"%s\"}",
+            title, status.value(), detail,
+            request.getRequestURI(), Instant.now()
+        ));
     }
 }
