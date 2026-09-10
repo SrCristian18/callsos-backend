@@ -127,6 +127,21 @@ public class SecurityConfig {
                     .hasAnyRole("OPERADOR_CAI", "COMANDO")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/en-camino")
                     .hasRole("AGENTE")
+                // FIX (auditoría AUD-2): esta ruta no tenía ninguna regla
+                // explícita — al no matchear el comodín de un solo
+                // segmento "/api/v1/incidentes/*" (son 2 segmentos
+                // después de "incidentes"), caía en
+                // anyRequest().authenticated() SIN restricción de rol, y
+                // SimularRecorridoAgenteService.detener() tampoco valida
+                // ownership — cualquier usuario autenticado, de
+                // cualquier rol, podía detener la simulación de
+                // CUALQUIER incidente. Se restringe al mismo rol que
+                // puede iniciarla (en-camino?simular=true, arriba).
+                // Impacto real limitado (es una utilidad "SOLO PRUEBAS
+                // PILOTO", ver IncidenteController), pero el hueco de
+                // autorización es real igual.
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/detener-simulacion")
+                    .hasRole("AGENTE")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/atender")
                     .hasRole("AGENTE")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/incidentes/*/evaluar")

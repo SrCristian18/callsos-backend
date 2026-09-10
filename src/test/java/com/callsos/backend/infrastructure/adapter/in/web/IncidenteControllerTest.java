@@ -375,13 +375,44 @@ class IncidenteControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /{id}/cancelar acepta DENUNCIANTE o COMANDO")
-    void cancelarPermiteDenuncianteYComando() throws Exception {
+    @DisplayName("PATCH /{id}/cancelar con DENUNCIANTE dueño retorna 204")
+    void cancelarComoDenuncianteDueno() throws Exception {
+        // incidenteDeEjemplo() pertenece a "den-001" — mismo actor.
+        when(consultarIncidente.ejecutar("i-001")).thenReturn(incidenteDeEjemplo());
+
         mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
                 .with(authentication(actor("den-001", "DENUNCIANTE"))))
             .andExpect(status().isNoContent());
 
         verify(cambiarEstado).ejecutar("i-001", EstadoIncidente.CANCELADO);
+    }
+
+    @Test
+    @DisplayName(
+        "PATCH /{id}/cancelar — FIX (auditoría AUD-2): DENUNCIANTE que NO es "
+        + "el dueño retorna 403 y NO ejecuta la cancelación")
+    void cancelarComoDenuncianteNoDuenoRetorna403() throws Exception {
+        // incidenteDeEjemplo() pertenece a "den-001" — actor distinto.
+        when(consultarIncidente.ejecutar("i-001")).thenReturn(incidenteDeEjemplo());
+
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
+                .with(authentication(actor("den-002", "DENUNCIANTE"))))
+            .andExpect(status().isForbidden());
+
+        verify(cambiarEstado, never()).ejecutar(any(), any());
+    }
+
+    @Test
+    @DisplayName("PATCH /{id}/cancelar con COMANDO retorna 204 sin exigir ownership")
+    void cancelarComoComandoNoExigeOwnership() throws Exception {
+        // COMANDO nunca es dueño de un incidente — no debe consultarse
+        // ownership para este rol (bypass explícito en el controller).
+        mockMvc.perform(patch("/api/v1/incidentes/i-001/cancelar")
+                .with(authentication(actor("com-001", "COMANDO"))))
+            .andExpect(status().isNoContent());
+
+        verify(cambiarEstado).ejecutar("i-001", EstadoIncidente.CANCELADO);
+        verifyNoInteractions(consultarIncidente);
     }
 
     @Test
