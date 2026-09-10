@@ -33,7 +33,7 @@ public class UbicacionAgente {
     private final String agenteId;
     private final String incidenteId;
     private final Ubicacion ubicacion;
-    private final LocalDateTime timestamp;
+    private LocalDateTime timestamp;
  
     public UbicacionAgente(String agenteId, String incidenteId,
                            Ubicacion ubicacion) {
@@ -47,4 +47,30 @@ public class UbicacionAgente {
     public String getIncidenteId()   { return incidenteId; }
     public Ubicacion getUbicacion()  { return ubicacion; }
     public LocalDateTime getTimestamp() { return timestamp; }
+
+    // ── Reconstitución desde persistencia ────────────────────────────────
+
+    /**
+     * Restaura el timestamp real leído de BD (AUD-4).
+     *
+     * BUG encontrado: el RowMapper de UbicacionAgenteRepositoryMySQL
+     * (buscarPorIncidente y ultimaPosicion) seleccionaba la columna
+     * "timestamp" en el SQL pero reconstruía el objeto con
+     * `new UbicacionAgente(agenteId, incidenteId, ubicacion)` — ese
+     * constructor SIEMPRE fija timestamp = LocalDateTime.now(). El
+     * resultado: cualquier posición leída de BD (no la que se acaba de
+     * guardar) reportaba la hora de la CONSULTA, no la hora real en que
+     * el agente estuvo ahí. Esto es lo que
+     * UbicacionAgenteController.solicitarUltimaPosicion() envía al
+     * cliente como "timestamp" al reconectar — el dato llegaba siempre
+     * como "ahora", ocultando si la posición está desactualizada (agente
+     * con la app cerrada, sin señal, etc.).
+     *
+     * SOLO para uso de adaptadores de persistencia al reconstituir el
+     * agregado. Nunca llamar desde lógica de negocio — mismo patrón que
+     * Incidente.reconstituirEstado()/reconstituirUnidad().
+     */
+    public void reconstituirTimestamp(LocalDateTime timestamp) {
+        this.timestamp = timestamp;
+    }
 }

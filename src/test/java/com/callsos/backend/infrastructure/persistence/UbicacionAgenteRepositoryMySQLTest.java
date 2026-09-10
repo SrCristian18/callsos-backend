@@ -107,4 +107,36 @@ public class UbicacionAgenteRepositoryMySQLTest {
             repository.ultimaPosicion("agente-sin-pos", "incidente-x");
         assertTrue(ultima.isEmpty());
     }
+
+    @Test
+    @DisplayName("AUD-4 (regresión): el timestamp leído de BD es el real, no el de la consulta")
+    void timestampReconstituidoEsElDeGuardadoNoElDeLaConsulta() throws InterruptedException {
+        // Antes del fix, el RowMapper reconstruía UbicacionAgente con el
+        // constructor que siempre fija timestamp = LocalDateTime.now(),
+        // descartando la columna "timestamp" leída de BD. Este test
+        // habría fallado con ese bug: al esperar entre el guardar y el
+        // leer, un timestamp "de consulta" queda muy por encima del
+        // margen de tolerancia usado abajo.
+        java.time.LocalDateTime antesDeGuardar = java.time.LocalDateTime.now();
+
+        repository.guardar(new UbicacionAgente(
+            "ag-test-ts", "i-test-ts", new Ubicacion(10.40, -75.50)));
+
+        Thread.sleep(1500);
+
+        Optional<UbicacionAgente> ultima =
+            repository.ultimaPosicion("ag-test-ts", "i-test-ts");
+
+        assertTrue(ultima.isPresent());
+        long diferenciaSegundos = java.time.Duration
+            .between(antesDeGuardar, ultima.get().getTimestamp())
+            .toSeconds();
+
+        // El timestamp real de guardado debe estar cerca de "antesDeGuardar"
+        // (menos de 1s de margen), NO cerca de "ahora" (que ya lleva >=1.5s
+        // de diferencia por el Thread.sleep).
+        assertTrue(diferenciaSegundos < 1,
+            "El timestamp reconstituido debería ser el de guardado, no el de la consulta " +
+            "(diferencia observada: " + diferenciaSegundos + "s)");
+    }
 }
