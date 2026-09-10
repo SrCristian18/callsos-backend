@@ -65,11 +65,7 @@ public class UbicacionAgenteRepositoryMySQL implements UbicacionAgenteRepository
             WHERE incidente_id = ?
             ORDER BY timestamp ASC
             """,
-            (rs, i) -> new UbicacionAgente(
-                rs.getString("agente_id"),
-                rs.getString("incidente_id"),
-                new Ubicacion(rs.getDouble("latitud"), rs.getDouble("longitud"))
-            ),
+            (rs, i) -> mapearFila(rs),
             incidenteId
         );
     }
@@ -84,13 +80,28 @@ public class UbicacionAgenteRepositoryMySQL implements UbicacionAgenteRepository
             ORDER BY timestamp DESC, id DESC
             LIMIT 1
             """,
-            rs -> rs.next()
-                ? Optional.of(new UbicacionAgente(
-                    rs.getString("agente_id"),
-                    rs.getString("incidente_id"),
-                    new Ubicacion(rs.getDouble("latitud"), rs.getDouble("longitud"))))
-                : Optional.empty(),
+            rs -> rs.next() ? Optional.of(mapearFila(rs)) : Optional.empty(),
             agenteId, incidenteId
         );
+    }
+
+    /**
+     * FIX (AUD-4): antes, ambos RowMapper de arriba reconstruían el
+     * agregado con `new UbicacionAgente(agenteId, incidenteId, ubicacion)`
+     * — ese constructor siempre fija timestamp = LocalDateTime.now(),
+     * así que la columna "timestamp" leída de BD se descartaba en
+     * silencio. Cualquier posición reconstruida desde persistencia
+     * (buscarPorIncidente, ultimaPosicion) reportaba la hora de la
+     * CONSULTA, no la hora real del reporte GPS — ver
+     * UbicacionAgente.reconstituirTimestamp() para el detalle completo.
+     */
+    private UbicacionAgente mapearFila(java.sql.ResultSet rs) throws java.sql.SQLException {
+        UbicacionAgente ua = new UbicacionAgente(
+            rs.getString("agente_id"),
+            rs.getString("incidente_id"),
+            new Ubicacion(rs.getDouble("latitud"), rs.getDouble("longitud"))
+        );
+        ua.reconstituirTimestamp(rs.getTimestamp("timestamp").toLocalDateTime());
+        return ua;
     }
 }
