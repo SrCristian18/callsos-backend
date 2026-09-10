@@ -72,11 +72,36 @@ public class ReporteController {
                 reporte.getIncidente().getId(), reporte.getAgente().getId()));
     }
  
-    /** POST /api/reportes/administrativo — el Comando genera reporte administrativo. */
+    /**
+     * POST /api/reportes/administrativo — el Comando o CAI genera reporte
+     * administrativo.
+     *
+     * FIX (auditoría AUD-8): mismo tipo de vulnerabilidad que
+     * {@link #crearHallazgos} (Épica 8, hallazgo de seguridad #1), sin
+     * corregir hasta ahora en este endpoint — {@code autoridadId} salía
+     * directo del body sin comparar contra el actor autenticado. Un
+     * OPERADOR_CAI de CUALQUIER CAI podía enviar el {@code autoridadId}
+     * de OTRO CAI y el backend lo aceptaba sin más, firmando un reporte
+     * administrativo "como" una unidad distinta a la suya.
+     *
+     * A diferencia de hallazgos (donde agenteId SIEMPRE es el actor, sin
+     * ambigüedad), acá la restricción es asimétrica por rol: COMANDO no
+     * tiene una unidadPolicialId propia (genera el reporte en el paso 3
+     * del flujo, derivando el incidente — puede legítimamente nombrar
+     * cualquier CAI como autoridad), así que la validación de ownership
+     * se aplica SOLO cuando el actor es OPERADOR_CAI.
+     */
     @PostMapping("/administrativo")
     public ResponseEntity<ReporteAdministrativoResponse> crearAdministrativo(
-            @Valid @RequestBody ReporteAdministrativoRequest request) {
- 
+            @Valid @RequestBody ReporteAdministrativoRequest request,
+            Authentication authentication) {
+
+        boolean esOperadorCai = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_OPERADOR_CAI"));
+        if (esOperadorCai && !authentication.getName().equals(request.autoridadId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         ReporteAdministrativo reporte = crearAdministrativo.ejecutar(
             request.incidenteId(), request.autoridadId(), request.resumen());
  

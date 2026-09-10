@@ -164,6 +164,50 @@ class ReporteControllerTest {
     }
 
     @Test
+    @DisplayName(
+        "POST /administrativo — FIX (auditoría AUD-8): OPERADOR_CAI de OTRO "
+        + "CAI (autoridadId no coincide con su actorId) retorna 403")
+    void crearAdministrativoComoOperadorDeOtroCaiRetorna403() throws Exception {
+        String body = """
+            {"incidenteId": "i-001", "autoridadId": "cai-001", "resumen": "Resumen del caso"}
+            """;
+
+        mockMvc.perform(post("/api/v1/reportes/administrativo")
+                // actor autenticado es "cai-002", pero intenta firmar el
+                // reporte como autoridad "cai-001" — debe rechazarse.
+                .with(authentication(actor("cai-002", "OPERADOR_CAI")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(crearAdministrativo);
+    }
+
+    @Test
+    @DisplayName(
+        "POST /administrativo con rol COMANDO retorna 201 sin exigir "
+        + "ownership sobre autoridadId (Comando no tiene unidad propia)")
+    void crearAdministrativoComoComandoNoExigeOwnership() throws Exception {
+        Incidente incidente = new Incidente(
+            "i-001", TipoIncidente.ROBOS_O_ASALTOS, "desc", ubicacion, denunciante);
+        UnidadPolicial cai = new UnidadPolicial("cai-001", "CAI Manga", "Calle 1", ubicacion, "601");
+        when(crearAdministrativo.ejecutar("i-001", "cai-001", "Resumen del caso"))
+            .thenReturn(new ReporteAdministrativo("ra-001", "Resumen del caso", incidente, cai));
+
+        String body = """
+            {"incidenteId": "i-001", "autoridadId": "cai-001", "resumen": "Resumen del caso"}
+            """;
+
+        mockMvc.perform(post("/api/v1/reportes/administrativo")
+                // actor "com-001" (COMANDO) nombrando una autoridad "cai-001"
+                // que no es su propio actorId — permitido para este rol.
+                .with(authentication(actor("com-001", "COMANDO")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
     @DisplayName("POST /administrativo con rol AGENTE retorna 403")
     void crearAdministrativoProhibidoParaAgente() throws Exception {
         String body = """

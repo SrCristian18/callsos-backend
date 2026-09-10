@@ -1,6 +1,7 @@
 package com.callsos.backend.infrastructure.adapter.in.web;
 
 import com.callsos.backend.domain.enums.EstadoIncidente;
+import com.callsos.backend.domain.exception.AccesoDenegadoException;
 import com.callsos.backend.domain.model.Asignacion;
 import com.callsos.backend.domain.model.EtaInfo;
 import com.callsos.backend.domain.model.Incidente;
@@ -300,8 +301,36 @@ public class IncidenteController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * PATCH /{id}/cancelar — cancela el incidente.
+     *
+     * FIX (auditoría AUD-2, hueco de ownership): antes este método no
+     * recibía {@link Authentication} y delegaba directo en
+     * {@link #cambiarEstado}, cuyo servicio ({@code
+     * CambiarEstadoIncidenteService}) NO valida ownership — a
+     * diferencia de {@link #atender}/{@link #evaluar}/
+     * {@link #marcarEnCamino}, que sí lo hacen desde Épica 8 (hallazgo
+     * de seguridad #2). Como {@code SecurityConfig} permite este
+     * endpoint tanto a DENUNCIANTE como a COMANDO, y el puerto
+     * `CambiarEstadoIncidentePort` es compartido con el endpoint
+     * genérico `/estado` (solo OPERADOR_CAI/COMANDO, donde ownership no
+     * aplica — el staff administra cualquier incidente), la validación
+     * se agrega aquí en el controller en vez de en el servicio: se
+     * exige ownership SOLO si el actor no tiene rol COMANDO.
+     */
     @PatchMapping("/{id}/cancelar")
-    public ResponseEntity<Void> cancelar(@PathVariable String id) {
+    public ResponseEntity<Void> cancelar(
+            @PathVariable String id, Authentication authentication) {
+        boolean esComando = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_COMANDO"));
+        if (!esComando) {
+            String actorId = authentication.getName();
+            Incidente incidente = consultarIncidente.ejecutar(id);
+            if (!incidente.getDenunciante().getId().equals(actorId)) {
+                throw new AccesoDenegadoException(
+                    "El denunciante autenticado no es el dueño de este incidente.");
+            }
+        }
         cambiarEstado.ejecutar(id, EstadoIncidente.CANCELADO);
         return ResponseEntity.noContent().build();
     }
