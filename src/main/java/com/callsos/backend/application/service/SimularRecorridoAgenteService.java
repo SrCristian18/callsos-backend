@@ -6,9 +6,9 @@ import com.callsos.backend.domain.port.in.SimularRecorridoAgentePort;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
 import com.callsos.backend.domain.port.out.RutaPort;
+import com.callsos.backend.domain.port.out.SimulacionEstadoPort;
 import com.callsos.backend.domain.service.CalculadoraDistancia;
 import com.callsos.backend.domain.valueobject.Ubicacion;
-import com.callsos.backend.infrastructure.adapter.out.ruta.SimulacionEstado;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.TaskScheduler;
@@ -28,7 +28,7 @@ public class SimularRecorridoAgenteService implements SimularRecorridoAgentePort
     private final AsignacionRepositoryPort asignacionRepository;
     private final RutaPort rutaPort;
     private final PublicarUbicacionAgentePort publicarUbicacion;
-    private final SimulacionEstado simulacionEstado;
+    private final SimulacionEstadoPort simulacionEstado;
     private final TaskScheduler taskScheduler;
     private final double velocidadKmh;
     private final long intervaloMs;
@@ -36,7 +36,7 @@ public class SimularRecorridoAgenteService implements SimularRecorridoAgentePort
 
     public SimularRecorridoAgenteService(IncidenteRepositoryPort incidenteRepository,
             AsignacionRepositoryPort asignacionRepository, RutaPort rutaPort,
-            PublicarUbicacionAgentePort publicarUbicacion, SimulacionEstado simulacionEstado,
+            PublicarUbicacionAgentePort publicarUbicacion, SimulacionEstadoPort simulacionEstado,
             TaskScheduler taskScheduler, double velocidadKmh, long intervaloMs) {
         this.incidenteRepository = incidenteRepository;
         this.asignacionRepository = asignacionRepository;

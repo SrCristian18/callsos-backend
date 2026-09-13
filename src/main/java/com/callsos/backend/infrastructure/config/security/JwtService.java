@@ -4,6 +4,7 @@
  */
 package com.callsos.backend.infrastructure.config.security;
 
+import com.callsos.backend.domain.port.out.TokenGeneratorPort;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -27,9 +28,18 @@ import java.util.Map;
  *
  *   Longitud mínima: 32 caracteres (256 bits para HS256).
  *   El arranque también valida esta longitud mínima.
+ *
+ * FIX (auditoría AUD-arquitectura): implementa {@link TokenGeneratorPort}
+ * — la capa de aplicación (LoginService, RegistrarDenuncianteService,
+ * RegistrarAgenteConInvitacionService) ahora depende de ese puerto, nunca
+ * de esta clase concreta. `extraerUserId`/`extraerRol`/`esValido` NO
+ * forman parte del puerto — son detalles de validación que solo necesita
+ * infraestructura (JwtAuthFilter, StompAuthChannelInterceptor), que sí
+ * puede depender de esta clase concreta sin problema por estar en la
+ * misma capa.
  */
 @Component
-public class JwtService {
+public class JwtService implements TokenGeneratorPort {
 
     private final SecretKey key;
     private final long expirationMs;
@@ -54,6 +64,7 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
+    @Override
     public String generarToken(String userId, String rol) {
         long now = System.currentTimeMillis();
         return Jwts.builder()

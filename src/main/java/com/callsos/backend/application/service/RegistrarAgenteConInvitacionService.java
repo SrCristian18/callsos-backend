@@ -7,8 +7,8 @@ import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.domain.port.in.RegistrarAgenteConInvitacionPort;
 import com.callsos.backend.domain.port.out.AgenteRepositoryPort;
 import com.callsos.backend.domain.port.out.InvitacionAgenteRepositoryPort;
+import com.callsos.backend.domain.port.out.TokenGeneratorPort;
 import com.callsos.backend.domain.port.out.UsuarioRepositoryPort;
-import com.callsos.backend.infrastructure.config.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,14 +31,14 @@ public class RegistrarAgenteConInvitacionService implements RegistrarAgenteConIn
     private final AgenteRepositoryPort agenteRepository;
     private final UsuarioRepositoryPort usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final TokenGeneratorPort jwtService;
 
     public RegistrarAgenteConInvitacionService(
             InvitacionAgenteRepositoryPort invitacionRepository,
             AgenteRepositoryPort agenteRepository,
             UsuarioRepositoryPort usuarioRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            TokenGeneratorPort jwtService) {
         this.invitacionRepository = invitacionRepository;
         this.agenteRepository     = agenteRepository;
         this.usuarioRepository    = usuarioRepository;

@@ -5,8 +5,8 @@ import com.callsos.backend.domain.model.Denunciante;
 import com.callsos.backend.domain.port.in.LoginPort;
 import com.callsos.backend.domain.port.in.RegistrarDenunciantePort;
 import com.callsos.backend.domain.port.out.DenuncianteRepositoryPort;
+import com.callsos.backend.domain.port.out.TokenGeneratorPort;
 import com.callsos.backend.domain.port.out.UsuarioRepositoryPort;
-import com.callsos.backend.infrastructure.config.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +32,12 @@ public class RegistrarDenuncianteService implements RegistrarDenunciantePort {
     private final DenuncianteRepositoryPort denuncianteRepository;
     private final UsuarioRepositoryPort usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final TokenGeneratorPort jwtService;
 
     public RegistrarDenuncianteService(DenuncianteRepositoryPort denuncianteRepository,
                                         UsuarioRepositoryPort usuarioRepository,
                                         PasswordEncoder passwordEncoder,
-                                        JwtService jwtService) {
+                                        TokenGeneratorPort jwtService) {
         this.denuncianteRepository = denuncianteRepository;
         this.usuarioRepository     = usuarioRepository;
         this.passwordEncoder       = passwordEncoder;
