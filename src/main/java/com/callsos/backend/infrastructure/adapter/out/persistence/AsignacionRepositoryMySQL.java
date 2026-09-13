@@ -91,35 +91,60 @@ public class AsignacionRepositoryMySQL implements AsignacionRepositoryPort{
             ORDER BY a.fecha_asignacion DESC
             LIMIT 1
             """;
-        
-        return jdbc.query(sql, rs -> {
-            if (!rs.next()) return Optional.empty();
- 
-            double lat = rs.getDouble("ag_lat");
-            double lon = rs.getDouble("ag_lon");
-            Ubicacion ubicacion = (lat == 0 && lon == 0)
-                ? null : new Ubicacion(lat, lon);
- 
-            Agente agente = new Agente(
-                rs.getString("ag_id"),
-                rs.getString("ag_nombre"),
-                rs.getString("ag_dir"),
-                ubicacion,
-                rs.getString("ag_tel")
-            );
-            // Épica 5: token FCM del agente — necesario para que
-            // NotificacionEventListener pueda notificarlo sin una
-            // consulta extra al reconstituir la Asignacion.
-            agente.setTokenFcm(rs.getString("ag_token_fcm"));
- 
-            return Optional.of(Asignacion.reconstituir(
-                rs.getString("id"),
-                rs.getObject("fecha_asignacion", LocalDateTime.class),
-                EstadoAsignacion.valueOf(rs.getString("estado")),
-                agente,
-                null   // Denuncia: JOIN extendido pendiente Fase 2
-            ));
-        }, incidenteId);
+
+        return jdbc.query(sql, rs -> rs.next() ? Optional.of(mapearFila(rs)) : Optional.empty(),
+            incidenteId);
+    }
+
+    /**
+     * AUD-5: misma query que buscarPorIncidente(), sin el filtro
+     * `AND a.estado = 'ACTIVA'` — ver el porqué en el Javadoc del
+     * puerto (AsignacionRepositoryPort.buscarUltimaPorIncidente).
+     */
+    @Override
+    public Optional<Asignacion> buscarUltimaPorIncidente(String incidenteId) {
+        String sql = """
+            SELECT a.id, a.fecha_asignacion, a.estado,
+                   ag.id AS ag_id, ag.nombre AS ag_nombre,
+                   ag.direccion AS ag_dir, ag.telefono AS ag_tel,
+                   ag.latitud AS ag_lat, ag.longitud AS ag_lon,
+                   ag.token_fcm AS ag_token_fcm
+            FROM asignaciones a
+            JOIN agentes ag ON ag.id = a.agente_id
+            WHERE a.incidente_id = ?
+            ORDER BY a.fecha_asignacion DESC
+            LIMIT 1
+            """;
+
+        return jdbc.query(sql, rs -> rs.next() ? Optional.of(mapearFila(rs)) : Optional.empty(),
+            incidenteId);
+    }
+
+    private Asignacion mapearFila(java.sql.ResultSet rs) throws java.sql.SQLException {
+        double lat = rs.getDouble("ag_lat");
+        double lon = rs.getDouble("ag_lon");
+        Ubicacion ubicacion = (lat == 0 && lon == 0)
+            ? null : new Ubicacion(lat, lon);
+
+        Agente agente = new Agente(
+            rs.getString("ag_id"),
+            rs.getString("ag_nombre"),
+            rs.getString("ag_dir"),
+            ubicacion,
+            rs.getString("ag_tel")
+        );
+        // Épica 5: token FCM del agente — necesario para que
+        // NotificacionEventListener pueda notificarlo sin una
+        // consulta extra al reconstituir la Asignacion.
+        agente.setTokenFcm(rs.getString("ag_token_fcm"));
+
+        return Asignacion.reconstituir(
+            rs.getString("id"),
+            rs.getObject("fecha_asignacion", LocalDateTime.class),
+            EstadoAsignacion.valueOf(rs.getString("estado")),
+            agente,
+            null   // Denuncia: JOIN extendido pendiente Fase 2
+        );
     }
     
     /** Método auxiliar semántico — usado internamente cuando solo se necesita saber si existe. */

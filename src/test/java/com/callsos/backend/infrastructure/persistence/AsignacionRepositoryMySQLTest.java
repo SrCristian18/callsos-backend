@@ -135,4 +135,34 @@ class AsignacionRepositoryMySQLTest {
 
         assertTrue(asignacionRepo.tieneAsignacionActiva("i-asig-004"));
     }
+
+    @Test
+    @DisplayName("AUD-5 (regresión): buscarUltimaPorIncidente SÍ encuentra asignaciones FINALIZADA")
+    void buscarUltimaPorIncidenteIncluyeFinalizadas() {
+        // A diferencia de buscarPorIncidente (test
+        // buscarPorIncidenteIgnoraFinalizadas arriba), este método debe
+        // seguir encontrando al agente aunque AgenteLiberador ya haya
+        // marcado la asignación como FINALIZADA — es justo el caso de
+        // uso que motivó agregarlo (NotificacionEventListener necesita
+        // saber a quién notificar tras la liberación).
+        Denuncia denuncia = crearDenunciaPersistida("i-asig-005", "den-reg-005");
+        Agente agente = new Agente("ag-test-001", "Pedro Test", "Av. Test", ubicacion, "3002222222");
+
+        Asignacion asignacion = new Asignacion("asig-005", agente, denuncia);
+        asignacion.finalizar(); // ACTIVA -> FINALIZADA
+        asignacionRepo.guardar(asignacion);
+
+        Optional<Asignacion> resultado = asignacionRepo.buscarUltimaPorIncidente("i-asig-005");
+
+        assertTrue(resultado.isPresent());
+        assertEquals("ag-test-001", resultado.get().getAgente().getId());
+        assertEquals(EstadoAsignacion.FINALIZADA, resultado.get().getEstado());
+    }
+
+    @Test
+    @DisplayName("buscarUltimaPorIncidente retorna vacío si el incidente nunca tuvo asignación")
+    void buscarUltimaPorIncidenteSinAsignacion() {
+        Optional<Asignacion> resultado = asignacionRepo.buscarUltimaPorIncidente("no-existe-xyz");
+        assertTrue(resultado.isEmpty());
+    }
 }
