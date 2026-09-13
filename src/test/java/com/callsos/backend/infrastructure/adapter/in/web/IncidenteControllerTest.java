@@ -152,6 +152,36 @@ class IncidenteControllerTest {
     }
 
     @Test
+    @DisplayName(
+        "POST / — FIX (auditoría integración final): ignora denuncianteId "
+        + "del body si no coincide con el actor autenticado (anti-suplantación)")
+    void crearIgnoraDenuncianteIdDelBodySiNoCoincideConElActor() throws Exception {
+        // El actor autenticado es "den-001", pero el body intenta crear el
+        // incidente "como" "den-999" — el backend debe usar "den-001" (el
+        // actorId real del JWT), nunca el valor del body.
+        when(crearIncidente.ejecutar(eq("den-001"), eq(TipoIncidente.ROBOS_O_ASALTOS), any(), any()))
+            .thenReturn(incidenteDeEjemplo());
+
+        String body = """
+            {
+              "denuncianteId": "den-999",
+              "tipo": "ROBOS_O_ASALTOS",
+              "descripcion": "Robo en curso",
+              "ubicacion": {"latitud": 10.4, "longitud": -75.5}
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/incidentes")
+                .with(authentication(actor("den-001", "DENUNCIANTE")))
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isCreated());
+
+        verify(crearIncidente).ejecutar(eq("den-001"), any(), any(), any());
+        verify(crearIncidente, never()).ejecutar(eq("den-999"), any(), any(), any());
+    }
+
+    @Test
     @DisplayName("POST / con rol AGENTE retorna 403 (solo DENUNCIANTE puede crear)")
     void crearComoAgenteProhibido() throws Exception {
         String body = """

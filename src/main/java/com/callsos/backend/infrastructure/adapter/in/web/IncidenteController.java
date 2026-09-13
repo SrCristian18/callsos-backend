@@ -213,12 +213,34 @@ public class IncidenteController {
 
     // ── Mutaciones de estado ──────────────────────────────────────────────────
 
+    /**
+     * POST / — crea un nuevo incidente.
+     *
+     * FIX (auditoría de integración final): antes, {@code denuncianteId}
+     * salía directo de {@code request.getDenuncianteId()} (el BODY), sin
+     * comparar contra el actor autenticado — mismo tipo de vulnerabilidad
+     * ya corregida en {@link #cancelar} (AUD-2) y en
+     * {@code ReporteController.crearAdministrativo} (AUD-8), pero que se
+     * había escapado en este endpoint. Cualquier DENUNCIANTE autenticado
+     * podía crear un incidente atribuido a OTRO denunciante con solo
+     * cambiar ese campo del body — el frontend real siempre manda su
+     * propio {@code actorId} (por eso nunca se notó funcionalmente), pero
+     * el backend no lo exigía.
+     *
+     * Se ignora el valor del body y se usa siempre
+     * {@code authentication.getName()} (el actorId del JWT). El campo se
+     * deja en {@link CrearIncidenteRequest} (sigue siendo
+     * {@code @NotBlank}) para no romper el contrato con el frontend
+     * existente — ahora es simplemente redundante, no una fuente de
+     * verdad.
+     */
     @PostMapping
     public ResponseEntity<IncidenteResponse> crear(
-            @Valid @RequestBody CrearIncidenteRequest request) {
+            @Valid @RequestBody CrearIncidenteRequest request,
+            Authentication authentication) {
         Ubicacion ubicacion = IncidenteMapper.toUbicacion(request.getUbicacion());
         Incidente incidente = crearIncidente.ejecutar(
-            request.getDenuncianteId(), request.getTipo(),
+            authentication.getName(), request.getTipo(),
             request.getDescripcion(), ubicacion);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(IncidenteMapper.toResponse(incidente));

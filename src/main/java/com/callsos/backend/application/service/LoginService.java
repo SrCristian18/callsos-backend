@@ -10,9 +10,9 @@ package com.callsos.backend.application.service;
  */
 
 import com.callsos.backend.domain.port.in.LoginPort;
+import com.callsos.backend.domain.port.out.TokenGeneratorPort;
 import com.callsos.backend.domain.port.out.UsuarioRepositoryPort;
 import com.callsos.backend.domain.port.out.UsuarioRepositoryPort.UsuarioCredencial;
-import com.callsos.backend.infrastructure.config.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
  
 /**
@@ -39,11 +39,11 @@ public class LoginService implements LoginPort{
         "Username o contraseña incorrectos.";
  
     private final UsuarioRepositoryPort usuarioRepository;
-    private final JwtService jwtService;
+    private final TokenGeneratorPort jwtService;
     private final PasswordEncoder passwordEncoder;
  
     public LoginService(UsuarioRepositoryPort usuarioRepository,
-                        JwtService jwtService,
+                        TokenGeneratorPort jwtService,
                         PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.jwtService        = jwtService;
