@@ -10,11 +10,12 @@ package com.callsos.backend.infrastructure.adapter.in.web;
  */
 
 import com.callsos.backend.domain.exception.AccesoDenegadoException;
-import com.callsos.backend.domain.model.AuditoriaIncidente;
 import com.callsos.backend.domain.model.Incidente;
 import com.callsos.backend.domain.port.out.AsignacionRepositoryPort;
 import com.callsos.backend.domain.port.out.AuditoriaRepositoryPort;
 import com.callsos.backend.domain.port.out.IncidenteRepositoryPort;
+import com.callsos.backend.infrastructure.adapter.in.web.dto.AuditoriaResponse;
+import com.callsos.backend.infrastructure.adapter.in.web.mapper.AuditoriaMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,6 +57,13 @@ import java.util.List;
  * problema. Se corrige consultando AsignacionRepositoryPort.buscarPorIncidente()
  * — la misma fuente de verdad (consulta real a la tabla `asignaciones`)
  * que ya usa MarcarAgenteEnCaminoService.
+ *
+ * AUD-arquitectura (cerrado en esta pasada): `historial()` devolvía
+ * `List<AuditoriaIncidente>` — el modelo de dominio directo,
+ * serializado tal cual por Jackson. Ahora mapea a `AuditoriaResponse`
+ * (mismos campos, ver su Javadoc) para que el contrato de API sea
+ * explícito e independiente del agregado de dominio, igual que ya
+ * hacen IncidenteController/EtaResponse/etc.
  */
 @RestController
 @RequestMapping("/api/v1/auditoria")
@@ -74,7 +82,7 @@ public class AuditoriaController {
     }
  
     @GetMapping("/incidente/{id}")
-    public ResponseEntity<List<AuditoriaIncidente>> historial(
+    public ResponseEntity<List<AuditoriaResponse>> historial(
             @PathVariable String id, Authentication authentication) {
 
         String actorId = authentication.getName();
@@ -106,6 +114,7 @@ public class AuditoriaController {
             }
         }
 
-        return ResponseEntity.ok(auditoriaRepository.buscarPorIncidente(id));
+        return ResponseEntity.ok(
+            AuditoriaMapper.toResponseList(auditoriaRepository.buscarPorIncidente(id)));
     }
 }

@@ -210,4 +210,31 @@ class AuditoriaControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray());
     }
+
+    @Test
+    @DisplayName("AUD-arquitectura (regresión): la respuesta es el DTO AuditoriaResponse, no el modelo de dominio")
+    void respuestaEsDtoConTodosLosCampos() throws Exception {
+        // Antes de este fix, el endpoint devolvía List<AuditoriaIncidente>
+        // (modelo de dominio) directo. Este test fija el contrato de API
+        // explícito (AuditoriaResponse) verificando TODOS sus campos, no
+        // solo "detalle" como el test de arriba — para que un futuro
+        // cambio al agregado de dominio no pueda alterar el JSON sin que
+        // este test lo note.
+        AuditoriaIncidente evento = new AuditoriaIncidente(
+            "i-001", EstadoIncidente.CREADO, EstadoIncidente.DERIVADO_A_CAI,
+            "cai-001", "OPERADOR_CAI", "Derivado al CAI más cercano");
+
+        when(auditoriaRepository.buscarPorIncidente("i-003")).thenReturn(List.of(evento));
+
+        mockMvc.perform(get("/api/v1/auditoria/incidente/i-003")
+                .with(authentication(actor("usr-comando", "COMANDO"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].incidenteId").value("i-001"))
+            .andExpect(jsonPath("$[0].estadoAnterior").value("CREADO"))
+            .andExpect(jsonPath("$[0].estadoNuevo").value("DERIVADO_A_CAI"))
+            .andExpect(jsonPath("$[0].actorId").value("cai-001"))
+            .andExpect(jsonPath("$[0].actorRol").value("OPERADOR_CAI"))
+            .andExpect(jsonPath("$[0].detalle").value("Derivado al CAI más cercano"))
+            .andExpect(jsonPath("$[0].timestamp").exists());
+    }
 }
